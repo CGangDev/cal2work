@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* FullCalendar overrides */
+.fc {
+  height: 100%;
+  font-size: 13px;
+}
+
+.fc .fc-toolbar-title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.fc .fc-button {
+  font-size: 12px;
+  padding: 4px 10px;
+}
+
+.fc .fc-event {
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.fc .fc-event:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.fc-daygrid-event-harness {
+  margin-bottom: 1px;
+}
