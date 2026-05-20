@@ -30,10 +30,30 @@ function buildAnonymousVEvent(event: CalendarEvent): string {
   ].join('\r\n');
 }
 
+function stripXAppleProperties(raw: string): string {
+  // iCalendar lines may be folded — continuation lines start with a space or tab.
+  // Track whether we're inside a filtered property's (possibly folded) value.
+  const lines = raw.split(/\r?\n/);
+  const result: string[] = [];
+  let skipping = false;
+
+  for (const line of lines) {
+    const isContinuation = /^[ \t]/.test(line);
+    if (isContinuation) {
+      if (!skipping) result.push(line);
+      continue;
+    }
+    skipping = /^X-APPLE-/i.test(line);
+    if (!skipping) result.push(line);
+  }
+
+  return result.join('\r\n');
+}
+
 function buildFullVEvent(event: CalendarEvent): string {
   // Rebuild from raw to preserve recurrence rules, timezone info, etc.
-  // But update DTSTAMP so it's valid on export.
-  let raw = event.rawVEvent;
+  // Strip Apple-proprietary extension properties and refresh DTSTAMP.
+  let raw = stripXAppleProperties(event.rawVEvent);
 
   // Replace or insert DTSTAMP
   if (/^DTSTAMP:/m.test(raw)) {
