@@ -2,6 +2,7 @@ import { useRef, useState, type DragEvent } from 'react';
 import type { CalendarEvent } from '../types';
 import { parseIcsFile, parseIcbuDirectory } from '../lib/parseIcs';
 import { ICloudModal } from './ICloudModal';
+import { GoogleCalendarModal } from './GoogleCalendarModal';
 import { StopButton } from './StopButton';
 
 interface Props {
@@ -13,6 +14,7 @@ export function FileDropzone({ onLoaded }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showICloud, setShowICloud] = useState(false);
+  const [showGoogle, setShowGoogle] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const dirRef = useRef<HTMLInputElement>(null);
 
@@ -78,7 +80,7 @@ export function FileDropzone({ onLoaded }: Props) {
         <div className="w-full max-w-lg">
           <h1 className="text-3xl font-semibold text-gray-800 mb-2 text-center">Calendar Export</h1>
           <p className="text-gray-500 text-center mb-8">
-            Open an Apple .ics file, .icbu backup, or connect to iCloud directly.
+            Open an Apple .ics file, .icbu backup, or connect to iCloud or Google Calendar directly.
           </p>
 
           <div
@@ -119,12 +121,20 @@ export function FileDropzone({ onLoaded }: Props) {
             </div>
           </div>
 
-          <button
-            onClick={() => setShowICloud(true)}
-            className="w-full py-2.5 rounded-xl bg-white border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-          >
-            Connect to iCloud Calendar
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowICloud(true)}
+              className="flex-1 py-2.5 rounded-xl bg-white border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
+            >
+              iCloud Calendar
+            </button>
+            <button
+              onClick={() => setShowGoogle(true)}
+              className="flex-1 py-2.5 rounded-xl bg-white border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
+            >
+              Google Calendar
+            </button>
+          </div>
 
           {loading && (
             <p className="text-center text-blue-600 mt-4 text-sm">Parsing calendar data…</p>
@@ -167,6 +177,13 @@ export function FileDropzone({ onLoaded }: Props) {
         <ICloudModal
           onLoaded={(events) => { setShowICloud(false); onLoaded(events); }}
           onClose={() => setShowICloud(false)}
+        />
+      )}
+
+      {showGoogle && (
+        <GoogleCalendarModal
+          onLoaded={(events) => { setShowGoogle(false); onLoaded(events); }}
+          onClose={() => setShowGoogle(false)}
         />
       )}
     </>

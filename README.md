@@ -55,7 +55,10 @@ To export a `.ics` from Apple Calendar: File → Export → Export…
 To export an `.icbu` backup: File → Export → Calendar Archive…
 
 **From iCloud directly:**
-- Click **Connect to iCloud Calendar** and sign in with your Apple ID and an app-specific password (see below)
+- Click **iCloud Calendar** and sign in with your Apple ID and an app-specific password (see below)
+
+**From Google Calendar directly:**
+- Click **Google Calendar** and paste your secret iCal feed URL(s) (see below)
 
 #### iCloud setup
 
@@ -67,7 +70,19 @@ Apple does not allow direct sign-in with your regular password from third-party 
 
 Two-factor authentication must be enabled on your Apple ID for app-specific passwords to be available.
 
-The proxy server (`npm run server` or `npm run dev:all`) must be running for iCloud access — it handles the CalDAV requests that browsers cannot make directly due to CORS restrictions.
+#### Google Calendar setup
+
+No account login or app registration is required — Google Calendar provides a secret iCal feed URL you can paste directly into the app:
+
+1. Open [Google Calendar](https://calendar.google.com) and click the **gear icon (⚙) → Settings**
+2. In the left sidebar under **"Settings for my calendars"**, click the calendar you want
+3. Scroll down to the **"Integrate calendar"** section
+4. Find **"Secret address in iCal format"** and click the copy icon next to it
+5. Paste that URL into the app — repeat for each calendar you want to include
+
+> **Note:** Google updates iCal feeds with up to a 24-hour delay. Events added or changed recently may not appear immediately.
+
+The proxy server (`npm run server` or `npm run dev:all`) must be running for iCloud and Google Calendar access — it handles requests that browsers cannot make directly due to CORS restrictions.
 
 ### 2. Set a timeframe
 

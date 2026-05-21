@@ -258,6 +258,55 @@ app.post('/api/icloud/events', async (req, res) => {
   }
 });
 
+// Fetch a Google Calendar private iCal feed
+function isAllowedGoogleIcalUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.protocol === 'https:' &&
+      parsed.hostname === 'calendar.google.com' &&
+      parsed.pathname.startsWith('/calendar/ical/')
+    );
+  } catch {
+    return false;
+  }
+}
+
+app.post('/api/google/ical', async (req, res) => {
+  const { url } = req.body ?? {};
+  if (!url || typeof url !== 'string') {
+    return res.status(400).json({ error: 'url is required' });
+  }
+  if (!isAllowedGoogleIcalUrl(url)) {
+    return res.status(400).json({
+      error: 'URL must be a Google Calendar iCal address (calendar.google.com/calendar/ical/…)',
+    });
+  }
+
+  try {
+    const response = await axios.get(url, {
+      maxRedirects: 3,
+      validateStatus: (s) => s < 500,
+      responseType: 'text',
+    });
+
+    if (response.status === 404) {
+      return res.status(400).json({ error: 'Calendar not found. Check the URL and try again.' });
+    }
+    if (response.status !== 200) {
+      return res.status(502).json({ error: `Google Calendar returned status ${response.status}` });
+    }
+    if (!String(response.data).includes('BEGIN:VCALENDAR')) {
+      return res.status(502).json({ error: 'Response does not appear to be a valid iCal file.' });
+    }
+
+    res.json({ icsText: response.data });
+  } catch (err) {
+    console.error('[/api/google/ical]', err.message);
+    res.status(500).json({ error: 'Failed to fetch Google Calendar. Check the URL and try again.' });
+  }
+});
+
 // Shut down both the proxy and the Vite dev server
 app.post('/api/shutdown', (_req, res) => {
   res.json({ ok: true });
