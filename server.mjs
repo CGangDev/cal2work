@@ -20,7 +20,16 @@ const PORT = 3001;
 const CALDAV_BASE = 'https://caldav.icloud.com';
 
 const app = express();
-app.use(cors({ origin: ['http://localhost:5173', 'http://localhost:5174'] }));
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow any localhost port (Vite dev server picks 5173-5180+ as fallbacks)
+    if (!origin || /^http:\/\/localhost(:\d+)?$/.test(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+}));
 app.use(express.json());
 
 const xmlParser = new XMLParser({
@@ -310,10 +319,18 @@ app.post('/api/google/ical', async (req, res) => {
 // Shut down both the proxy and the Vite dev server
 app.post('/api/shutdown', (_req, res) => {
   res.json({ ok: true });
-  // Kill Vite (whichever port it grabbed)
-  exec('fuser -k 5173/tcp 5174/tcp 2>/dev/null', () => {
-    process.exit(0);
-  });
+  let cmd;
+  if (process.platform === 'win32') {
+    // Use PowerShell to find and kill processes on Vite's ports
+    const ps = [5173, 5174, 5175].map((p) =>
+      `$p = (Get-NetTCPConnection -LocalPort ${p} -ErrorAction SilentlyContinue).OwningProcess; if ($p) { $p | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue } }`
+    ).join('; ');
+    cmd = `powershell -NoProfile -Command "${ps}"`;
+  } else {
+    // fuser works on most Linux distros; fall back to lsof for macOS / distros without fuser
+    cmd = 'fuser -k 5173/tcp 5174/tcp 5175/tcp 2>/dev/null; lsof -ti:5173,5174,5175 | xargs kill -9 2>/dev/null; true';
+  }
+  exec(cmd, () => process.exit(0));
 });
 
 app.listen(PORT, () => {

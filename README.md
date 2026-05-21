@@ -1,42 +1,55 @@
 # Calendar Export
 
-A browser-based tool for reviewing Apple Calendar events and exporting a curated selection to an Outlook-compatible `.ics` file. Control which events include full details and which appear as anonymous time blocks.
+A browser-based tool for reviewing Apple and Google Calendar events and exporting a curated selection to an Outlook-compatible `.ics` file. Control which events include full details and which appear as anonymous time blocks.
 
 ## Requirements
 
-- [Node.js](https://nodejs.org/) 18 or later
+- [Node.js](https://nodejs.org/) 20 or later
 - npm (included with Node.js)
+
+---
 
 ## Running the app
 
-### Double-click launcher (recommended)
+### Linux — desktop launcher (recommended)
 
-A `Calendar Export.desktop` launcher is included in the project folder. To use it:
-
-1. **First time only** — right-click `Calendar Export.desktop` → Properties → Permissions → enable "Allow executing file as program" (or run `chmod +x "Calendar Export.desktop"` in a terminal)
-2. Double-click `Calendar Export.desktop`
-
-A terminal window will open, start both servers, and launch the app in your browser automatically. Close the terminal window to stop the app.
-
-> If your file manager shows a prompt asking whether to run or display the file, choose **Run**.
-
-### From the terminal
-
-**Without iCloud** — just the Vite frontend:
+Run the setup script once after cloning:
 
 ```bash
-npm install
-npm run dev
+chmod +x install-linux.sh
+./install-linux.sh
 ```
 
-**With iCloud** — frontend + proxy server together:
+This generates a `Calendar Export.desktop` launcher for your machine and optionally adds it to your application menu. After that, double-click the launcher to start the app.
+
+> **First time only:** if your file manager prompts you, choose **Run** (not Display). On GNOME you may also need to right-click → Allow Launching, or run:
+> ```bash
+> gio set "Calendar Export.desktop" metadata::trusted true
+> ```
+
+### Linux / macOS — terminal
 
 ```bash
 npm install
 npm run dev:all
 ```
 
-Then open **http://localhost:5173** in your browser (or whichever port Vite reports if 5173 is in use).
+Then open **http://localhost:5173** in your browser.
+
+### Windows — double-click launcher
+
+Double-click **`start.bat`** in the project folder. It will install dependencies on the first run, start both servers, and open your browser automatically.
+
+> **Windows note:** If you see a SmartScreen warning, click "More info" → "Run anyway". The app runs entirely locally.
+
+### Windows — terminal
+
+```bat
+npm install
+npm run dev:all
+```
+
+Then open **http://localhost:5173** in your browser.
 
 ---
 
@@ -44,75 +57,82 @@ Then open **http://localhost:5173** in your browser (or whichever port Vite repo
 
 ### 1. Load calendar data
 
-On the opening screen, load your calendar data in one of three ways:
+On the opening screen, load your calendar data in one of four ways:
 
 **From a file:**
-- **Drag and drop** a `.ics` file onto the drop zone
+- **Drag and drop** a `.ics` file onto the drop zone, or click to browse
 - **Open .ics file** — a single exported calendar file
-- **Open .icbu backup** — an Apple Calendar backup folder (select the `.icbu` directory; the app reads all calendars inside it and deduplicates events)
+- **Open .icbu backup** — an Apple Calendar backup folder
 
-To export a `.ics` from Apple Calendar: File → Export → Export…  
-To export an `.icbu` backup: File → Export → Calendar Archive…
+To export from Apple Calendar: File → Export → Export… (`.ics`) or File → Export → Calendar Archive… (`.icbu`)
 
-**From iCloud directly:**
-- Click **iCloud Calendar** and sign in with your Apple ID and an app-specific password (see below)
+**From a calendar service:**
+- **iCloud Calendar** — sign in directly (see [iCloud setup](#icloud-setup))
+- **Google Calendar** — paste a secret iCal URL (see [Google Calendar setup](#google-calendar-setup))
 
-**From Google Calendar directly:**
-- Click **Google Calendar** and paste your secret iCal feed URL(s) (see below)
+---
 
-#### iCloud setup
+### iCloud setup
 
-Apple does not allow direct sign-in with your regular password from third-party apps. You need to generate an **app-specific password**:
+Apple requires an **app-specific password** — your regular Apple ID password won't work here.
 
 1. Go to [appleid.apple.com](https://appleid.apple.com) → Sign-In and Security → App-Specific Passwords
 2. Click **Generate an app-specific password**, give it a name (e.g. "Calendar Export"), and copy the 16-character code
-3. Paste that code into the app's password field — not your regular Apple ID password
+3. Enter your Apple ID email and paste that code into the app
 
 Two-factor authentication must be enabled on your Apple ID for app-specific passwords to be available.
 
-#### Google Calendar setup
+---
 
-No account login or app registration is required — Google Calendar provides a secret iCal feed URL you can paste directly into the app:
+### Google Calendar setup
+
+No account login or app registration required — Google Calendar provides a secret iCal URL you can paste directly:
 
 1. Open [Google Calendar](https://calendar.google.com) and click the **gear icon (⚙) → Settings**
 2. In the left sidebar under **"Settings for my calendars"**, click the calendar you want
 3. Scroll down to the **"Integrate calendar"** section
-4. Find **"Secret address in iCal format"** and click the copy icon next to it
-5. Paste that URL into the app — repeat for each calendar you want to include
+4. Find **"Secret address in iCal format"** and click the **copy icon** next to it
+5. Paste that URL into the app — add more URLs to include multiple calendars
 
-> **Note:** Google updates iCal feeds with up to a 24-hour delay. Events added or changed recently may not appear immediately.
+> **Note:** Google updates iCal feeds with up to a 24-hour delay. Events added recently may not appear immediately.
 
-The proxy server (`npm run server` or `npm run dev:all`) must be running for iCloud and Google Calendar access — it handles requests that browsers cannot make directly due to CORS restrictions.
+---
 
 ### 2. Set a timeframe
 
-Use the **From / to** date range in the top bar to limit which events are shown. Events outside the range are hidden from the calendar and removed from the selection. Adjust the range at any time — your selections are preserved for events still in view.
+Use the **From / to** date range in the top bar to limit which events are shown. Events outside the range are hidden and removed from the selection. Adjust at any time — selections for events still in view are preserved.
 
 ### 3. Select events
 
-Click any event on the calendar to select it. Selected events are highlighted in blue. Click again to deselect.
+Click any event on the calendar to select it (highlighted in blue). Click again to deselect.
 
-Use **Select all visible** in the sidebar to select every event in the current timeframe at once. Use **Clear all** to start over.
+Use **Select all visible** in the sidebar to select every event in the current timeframe. Use **Clear all** to start over.
 
-Switch between **Month**, **Week**, **Day**, and **List** views using the controls in the calendar header.
+Switch between **Month**, **Week**, **Day**, and **List** views with the controls in the calendar header.
 
 ### 4. Choose detail level per event
 
-Each event in the right sidebar has an **Include details** checkbox:
+Each selected event in the sidebar has an **Include details** toggle:
 
 | Setting | What exports |
 |---|---|
 | ✅ Include details | Full event: title, time, description, location, organizer, attendees |
-| ☐ Include details | Anonymous time block: shows as "event" with no title or metadata |
+| ☐ Include details | Anonymous time block — appears as "event" with no identifying information |
 
-Use anonymous mode for events you want to block out on a recipient's calendar without revealing what they are.
+Use anonymous mode to block out time on a recipient's calendar without revealing what the event is.
 
 ### 5. Export
 
-Click **Export N events →** in the sidebar to download `export.ics`. This file can be imported directly into Outlook:
+Click **Export N events →** in the sidebar to download `export.ics`. Import it into Outlook:
 
-**Outlook (desktop):** File → Open & Export → Import/Export → Import an iCalendar (.ics)  
-**Outlook (web):** Calendar → Add calendar → Upload from file
+- **Outlook (desktop):** File → Open & Export → Import/Export → Import an iCalendar (.ics)
+- **Outlook (web):** Calendar → Add calendar → Upload from file
+
+---
+
+## Stopping the app
+
+Click **Stop app** in the top-right corner of the app, or close the terminal window.
 
 ---
 
@@ -120,10 +140,14 @@ Click **Export N events →** in the sidebar to download `export.ics`. This file
 
 | Command | What it does |
 |---|---|
-| `npm run dev` | Start the Vite frontend only (file-based import, no iCloud) |
-| `npm run server` | Start the iCloud proxy server only (port 3001) |
-| `npm run dev:all` | Start both together (use this when you need iCloud access) |
+| `npm run dev` | Start the Vite frontend only (file import — no iCloud or Google Calendar) |
+| `npm run server` | Start the proxy server only (port 3001) |
+| `npm run dev:all` | Start both together (required for iCloud and Google Calendar) |
 | `npm run build` | Production build to `dist/` |
+
+The proxy server handles CalDAV requests to iCloud and iCal feed fetches for Google Calendar — both are blocked by browsers directly due to CORS restrictions.
+
+---
 
 ## Building for production
 
@@ -131,4 +155,10 @@ Click **Export N events →** in the sidebar to download `export.ics`. This file
 npm run build
 ```
 
-Output goes to `dist/`. The frontend can be served as a static site. If you need iCloud support in production, you must also run the proxy server (`node server.mjs`) alongside it.
+Output goes to `dist/`. The frontend can be served as a static site. For iCloud and Google Calendar support, run the proxy server (`node server.mjs`) alongside it.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).

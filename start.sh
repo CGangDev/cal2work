@@ -5,16 +5,23 @@ set -e
 
 cd "$(dirname "$0")"
 
-# Ensure common install locations are in PATH (gnome-terminal via .desktop
-# launches a non-login shell that may not have the full user PATH).
-# Prepend nvm's highest installed version so it wins over the system node.
-NVM_NODE_BIN="$HOME/.nvm/versions/node/$(ls "$HOME/.nvm/versions/node" 2>/dev/null | sort -V | tail -1)/bin"
-export PATH="$NVM_NODE_BIN:/usr/local/bin:/usr/bin:/snap/bin:$PATH"
+# ── Node.js path resolution ───────────────────────────────────────────────────
+# Prepend common install locations so the launcher works from a desktop shortcut
+# (which may not inherit the full login-shell PATH).
+# nvm: add the highest installed version if nvm is present
+if [ -d "$HOME/.nvm/versions/node" ]; then
+  NVM_LATEST="$(ls "$HOME/.nvm/versions/node" 2>/dev/null | sort -V | tail -1)"
+  if [ -n "$NVM_LATEST" ]; then
+    export PATH="$HOME/.nvm/versions/node/$NVM_LATEST/bin:$PATH"
+  fi
+fi
+# fnm / Homebrew / snap / system fallbacks
+export PATH="/usr/local/bin:/usr/bin:/opt/homebrew/bin:/snap/bin:$PATH"
 
 # ── Check Node.js ────────────────────────────────────────────────────────────
 if ! command -v node &>/dev/null; then
   echo "Error: Node.js is not installed."
-  echo "Install it with: sudo apt install nodejs npm"
+  echo "Install it from https://nodejs.org/ (version 20 or later)"
   read -rp "Press Enter to close..."
   exit 1
 fi
@@ -27,7 +34,17 @@ if [ ! -d "node_modules" ]; then
 fi
 
 # ── Clear any leftover processes from a previous session ─────────────────────
-fuser -k 3001/tcp 5173/tcp 5174/tcp 5175/tcp 2>/dev/null || true
+kill_port() {
+  local port="$1"
+  # fuser (most Linux distros) or lsof (macOS / distros without fuser)
+  fuser -k "${port}/tcp" 2>/dev/null || \
+    { lsof -ti ":${port}" 2>/dev/null | xargs kill -9 2>/dev/null; } || \
+    true
+}
+kill_port 3001
+kill_port 5173
+kill_port 5174
+kill_port 5175
 sleep 1
 
 echo "Starting Calendar Export..."
@@ -37,9 +54,16 @@ echo ""
 node server.mjs &
 PROXY_PID=$!
 
-# ── Start Vite and watch its output for the URL ──────────────────────────────
-# Rather than polling with curl, read Vite's stdout directly and open the
-# browser the moment Vite prints its own "Local: http://..." line.
+# ── Open the browser when Vite reports its URL ───────────────────────────────
+open_browser() {
+  local url="$1"
+  if command -v xdg-open &>/dev/null; then
+    xdg-open "$url" 2>/dev/null
+  elif command -v open &>/dev/null; then
+    open "$url" 2>/dev/null
+  fi
+}
+
 OPENED=false
 npm run dev 2>&1 | while IFS= read -r line; do
   printf '%s\n' "$line"
@@ -54,7 +78,7 @@ npm run dev 2>&1 | while IFS= read -r line; do
       echo "  Close this window to stop the app"
       echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       echo ""
-      xdg-open "$URL" 2>/dev/null || sensible-browser "$URL" 2>/dev/null || true
+      open_browser "$URL"
     fi
   fi
 done
