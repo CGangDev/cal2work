@@ -6,17 +6,17 @@ set -e
 cd "$(dirname "$0")"
 
 # ── Node.js path resolution ───────────────────────────────────────────────────
-# Prepend common install locations so the launcher works from a desktop shortcut
-# (which may not inherit the full login-shell PATH).
-# nvm: add the highest installed version if nvm is present
+# Desktop launchers may not inherit the full login-shell PATH, so we build it
+# explicitly. nvm must come first so it beats any older system node.
+NVM_BIN=""
 if [ -d "$HOME/.nvm/versions/node" ]; then
   NVM_LATEST="$(ls "$HOME/.nvm/versions/node" 2>/dev/null | sort -V | tail -1)"
   if [ -n "$NVM_LATEST" ]; then
-    export PATH="$HOME/.nvm/versions/node/$NVM_LATEST/bin:$PATH"
+    NVM_BIN="$HOME/.nvm/versions/node/$NVM_LATEST/bin:"
   fi
 fi
-# fnm / Homebrew / snap / system fallbacks
-export PATH="/usr/local/bin:/usr/bin:/opt/homebrew/bin:/snap/bin:$PATH"
+# Single export keeps nvm ahead of system paths
+export PATH="${NVM_BIN}/usr/local/bin:/usr/bin:/opt/homebrew/bin:/snap/bin:$PATH"
 
 # ── Check Node.js ────────────────────────────────────────────────────────────
 if ! command -v node &>/dev/null; then
