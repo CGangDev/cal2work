@@ -3,6 +3,25 @@ import cors from 'cors';
 import axios from 'axios';
 import { XMLParser } from 'fast-xml-parser';
 import { exec } from 'child_process';
+import path from 'path';
+import { existsSync } from 'fs';
+
+// Determine if we're running as a packaged executable (pkg sets process.pkg)
+const IS_PACKAGED = Boolean(process.pkg);
+const PRODUCTION = IS_PACKAGED || process.env.NODE_ENV === 'production';
+
+// Path resolution: in pkg, use process.execPath directory for external files.
+// In normal Node.js, use import.meta.url. In CJS bundle (esbuild), import.meta is empty so use __dirname.
+let APP_DIR;
+if (IS_PACKAGED) {
+  APP_DIR = path.dirname(process.execPath);
+} else if (import.meta.url) {
+  APP_DIR = path.dirname(new URL(import.meta.url).pathname);
+} else if (typeof __dirname !== 'undefined') {
+  APP_DIR = __dirname;
+} else {
+  APP_DIR = process.cwd();
+}
 
 // iCloud CalDAV uses caldav.icloud.com and regional variants like p66-caldav.icloud.com
 const ALLOWED_CALDAV_HOST = /^(caldav\.icloud\.com|p\d{1,3}-caldav\.icloud\.com)$/;
@@ -16,20 +35,32 @@ function isAllowedCalDavUrl(url) {
   }
 }
 
-const PORT = 3001;
+const PORT = PRODUCTION ? (parseInt(process.env.PORT, 10) || 3000) : 3001;
 const CALDAV_BASE = 'https://caldav.icloud.com';
 
 const app = express();
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow any localhost port (Vite dev server picks 5173-5180+ as fallbacks)
-    if (!origin || /^http:\/\/localhost(:\d+)?$/.test(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-}));
+
+if (PRODUCTION) {
+  // In production, frontend is served from the same origin — no CORS needed
+  // Serve static frontend files
+  const distPath = path.join(APP_DIR, 'dist');
+
+  if (existsSync(distPath)) {
+    app.use(express.static(distPath));
+  }
+} else {
+  // In dev, allow CORS from Vite dev server
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin || /^http:\/\/localhost(:\d+)?$/.test(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+  }));
+}
+
 app.use(express.json());
 
 const xmlParser = new XMLParser({
@@ -316,23 +347,51 @@ app.post('/api/google/ical', async (req, res) => {
   }
 });
 
-// Shut down both the proxy and the Vite dev server
+// Shut down the app
 app.post('/api/shutdown', (_req, res) => {
   res.json({ ok: true });
-  let cmd;
-  if (process.platform === 'win32') {
-    // Use PowerShell to find and kill processes on Vite's ports
-    const ps = [5173, 5174, 5175].map((p) =>
-      `$p = (Get-NetTCPConnection -LocalPort ${p} -ErrorAction SilentlyContinue).OwningProcess; if ($p) { $p | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue } }`
-    ).join('; ');
-    cmd = `powershell -NoProfile -Command "${ps}"`;
+  if (PRODUCTION) {
+    // In production mode, just exit — we are the only process
+    setTimeout(() => process.exit(0), 200);
   } else {
-    // fuser works on most Linux distros; fall back to lsof for macOS / distros without fuser
-    cmd = 'fuser -k 5173/tcp 5174/tcp 5175/tcp 2>/dev/null; lsof -ti:5173,5174,5175 | xargs kill -9 2>/dev/null; true';
+    // In dev mode, also kill Vite dev server ports
+    let cmd;
+    if (process.platform === 'win32') {
+      const ps = [5173, 5174, 5175].map((p) =>
+        `$p = (Get-NetTCPConnection -LocalPort ${p} -ErrorAction SilentlyContinue).OwningProcess; if ($p) { $p | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue } }`
+      ).join('; ');
+      cmd = `powershell -NoProfile -Command "${ps}"`;
+    } else {
+      cmd = 'fuser -k 5173/tcp 5174/tcp 5175/tcp 2>/dev/null; lsof -ti:5173,5174,5175 | xargs kill -9 2>/dev/null; true';
+    }
+    exec(cmd, () => process.exit(0));
   }
-  exec(cmd, () => process.exit(0));
 });
 
+// In production, serve the SPA — any non-API route returns index.html
+if (PRODUCTION) {
+  app.get('/{*splat}', (_req, res) => {
+    const distPath = path.join(APP_DIR, 'dist');
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
+
+// ── Start server & open browser ─────────────────────────────────────────────
+
+function openBrowser(url) {
+  const cmd = process.platform === 'win32' ? `start "" "${url}"`
+    : process.platform === 'darwin' ? `open "${url}"`
+    : `xdg-open "${url}" 2>/dev/null || sensible-browser "${url}" 2>/dev/null`;
+  exec(cmd, () => {});
+}
+
 app.listen(PORT, () => {
-  console.log(`iCloud CalDAV proxy → http://localhost:${PORT}`);
+  const url = `http://localhost:${PORT}`;
+  if (PRODUCTION) {
+    console.log(`Calendar Export → ${url}`);
+    console.log('Press Ctrl+C to stop.');
+    openBrowser(url);
+  } else {
+    console.log(`iCloud CalDAV proxy → ${url}`);
+  }
 });

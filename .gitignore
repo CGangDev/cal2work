@@ -1,5 +1,7 @@
 node_modules/
 dist/
+release/
+.pkg-build/
 .env
 *.local
 .claude/

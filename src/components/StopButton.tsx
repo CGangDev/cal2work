@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
-const PROXY = 'http://localhost:3001';
+// In production, API is on the same origin; in dev, Vite proxies /api to the proxy server
+const PROXY = '';
 
 export function StopButton() {
   const [state, setState] = useState<'idle' | 'stopping' | 'stopped' | 'unavailable'>('idle');

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import type { CalendarEvent } from '../types';
 import { parseIcsText } from '../lib/parseIcs';
 
-const PROXY = 'http://localhost:3001';
+// In production, API is on the same origin; in dev, Vite proxies /api to the proxy server
+const PROXY = '';
 
 interface Props {
   onLoaded: (events: CalendarEvent[]) => void;
