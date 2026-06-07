@@ -1,10 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // In production, API is on the same origin; in dev, Vite proxies /api to the proxy server
 const PROXY = '';
 
 export function StopButton() {
   const [state, setState] = useState<'idle' | 'stopping' | 'stopped' | 'unavailable'>('idle');
+
+  // Auto-stop when the browser tab/window is closed
+  useEffect(() => {
+    function handleUnload() {
+      // Use sendBeacon for reliable delivery during page unload
+      navigator.sendBeacon(`${PROXY}/api/shutdown`);
+    }
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, []);
 
   async function handleStop() {
     setState('stopping');
@@ -38,10 +48,10 @@ export function StopButton() {
     <button
       onClick={handleStop}
       disabled={state === 'stopping'}
-      className="text-sm text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
+      className="px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 hover:text-red-700 transition-colors disabled:opacity-50"
       title="Stop the app"
     >
-      {state === 'stopping' ? 'Stopping…' : 'Stop app'}
+      {state === 'stopping' ? 'Stopping…' : '⏻ Stop app'}
     </button>
   );
 }
