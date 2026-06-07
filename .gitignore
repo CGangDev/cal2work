@@ -6,4 +6,5 @@ release/
 *.local
 .claude/
 .vscode/
+.kiro/
 *.desktop
