@@ -171,6 +171,11 @@ export default function App() {
     const range = defaultRange();
     setRangeStart(range.start);
     setRangeEnd(range.end);
+    // Refresh vault status (vault may have been created during modal flow)
+    fetch('/api/vault/status')
+      .then((r) => r.json())
+      .then((status: VaultStatus) => setVaultStatus(status))
+      .catch(() => {});
   }
 
   const visibleEvents = useMemo(() => {

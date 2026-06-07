@@ -153,7 +153,7 @@ export function FileDropzone({ onLoaded, savedCredentials, vaultUnlocked, onOpen
           )}
 
           <div className="mt-8 text-center flex items-center justify-center gap-4">
-            {vaultUnlocked && onOpenVaultSettings && (
+            {(vaultUnlocked || savedCredentials) && onOpenVaultSettings && (
               <button
                 onClick={onOpenVaultSettings}
                 className="text-gray-400 hover:text-gray-600 text-lg"
