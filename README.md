@@ -2,54 +2,23 @@
 
 A browser-based tool for reviewing Apple and Google Calendar events and exporting a curated selection to an Outlook-compatible `.ics` file. Control which events include full details and which appear as anonymous time blocks.
 
-## Requirements
+## Quick start
 
-- [Node.js](https://nodejs.org/) 20 or later
-- npm (included with Node.js)
+Download the latest release for your platform from the [Releases page](../../releases):
 
----
+| Platform | File |
+|---|---|
+| Linux | `calendar-export-linux` |
+| Windows | `calendar-export-win.exe` |
+| macOS | `calendar-export-macos` |
 
-## Running the app
+Run the executable. It starts a local server and opens your default browser automatically. No installation, no dependencies, no Node.js required.
 
-### Linux — desktop launcher (recommended)
-
-Run the setup script once after cloning:
-
-```bash
-chmod +x install-linux.sh
-./install-linux.sh
-```
-
-This generates a `Calendar Export.desktop` launcher for your machine and optionally adds it to your application menu. After that, double-click the launcher to start the app.
-
-> **First time only:** if your file manager prompts you, choose **Run** (not Display). On GNOME you may also need to right-click → Allow Launching, or run:
-> ```bash
-> gio set "Calendar Export.desktop" metadata::trusted true
-> ```
-
-### Linux / macOS — terminal
-
-```bash
-npm install
-npm run dev:all
-```
-
-Then open **http://localhost:5173** in your browser.
-
-### Windows — double-click launcher
-
-Double-click **`start.bat`** in the project folder. It will install dependencies on the first run, start both servers, and open your browser automatically.
-
-> **Windows note:** If you see a SmartScreen warning, click "More info" → "Run anyway". The app runs entirely locally.
-
-### Windows — terminal
-
-```bat
-npm install
-npm run dev:all
-```
-
-Then open **http://localhost:5173** in your browser.
+> **Windows:** If you see a SmartScreen warning, click "More info" → "Run anyway". The app runs entirely locally.
+>
+> **macOS:** You may need to right-click → Open the first time, or allow it in System Settings → Privacy & Security.
+>
+> **Linux:** Mark it executable first: `chmod +x calendar-export-linux`
 
 ---
 
@@ -132,13 +101,13 @@ Click **Export N events →** in the sidebar to download `export.ics`. Import it
 
 ## Stopping the app
 
-Click **Stop app** in the top-right corner of the app, or close the terminal window.
+Click **Stop app** in the top-right corner of the app, close the terminal/executable, or press Ctrl+C.
 
 ---
 
 ## Security & privacy
 
-Calendar Export runs entirely on your machine. There is no remote server, no cloud service, and no account registration. Your credentials are never stored to disk (unless you use the optional credential store in a future release) and are only held in memory for the duration of your session.
+Calendar Export runs entirely on your machine. There is no remote server, no cloud service, and no account registration. Your credentials are never stored to disk and are only held in memory for the duration of your session.
 
 The app does not use HTTPS for the local web page (`http://localhost:3000`) because all communication stays on your computer's loopback interface — it never touches a network. Browsers treat localhost as a [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts).
 
@@ -166,26 +135,61 @@ sequenceDiagram
 
 ---
 
-## Available scripts
+## Development
+
+### Requirements
+
+- [Node.js](https://nodejs.org/) 20 or later
+- npm (included with Node.js)
+
+### Running in dev mode
+
+```bash
+npm install
+npm run dev:all
+```
+
+This starts the Vite frontend (with hot reload) on port 5173 and the API proxy on port 3001. Vite proxies `/api` requests to the backend automatically.
+
+### Available scripts
 
 | Command | What it does |
 |---|---|
 | `npm run dev` | Start the Vite frontend only (file import — no iCloud or Google Calendar) |
-| `npm run server` | Start the proxy server only (port 3001) |
+| `npm run server` | Start the API proxy server only (port 3001) |
 | `npm run dev:all` | Start both together (required for iCloud and Google Calendar) |
-| `npm run build` | Production build to `dist/` |
+| `npm run build` | Build the frontend to `dist/` |
+| `npm run build:prod` | Build standalone executables for all platforms |
+| `npm run lint` | Run ESLint |
 
-The proxy server handles CalDAV requests to iCloud and iCal feed fetches for Google Calendar — both are blocked by browsers directly due to CORS restrictions.
+### Linux desktop launcher (optional)
 
----
-
-## Building for production
+If you prefer running from source with a desktop shortcut:
 
 ```bash
-npm run build
+chmod +x install-linux.sh
+./install-linux.sh
 ```
 
-Output goes to `dist/`. The frontend can be served as a static site. For iCloud and Google Calendar support, run the proxy server (`node server.mjs`) alongside it.
+### Building standalone executables
+
+```bash
+node build.mjs              # all platforms (linux, win, macos)
+node build.mjs linux        # Linux only
+node build.mjs win          # Windows only
+node build.mjs macos        # macOS only
+```
+
+Output goes to `release/`. Each executable is fully self-contained — the frontend is embedded inside the binary. No external files needed.
+
+The build process:
+1. Builds the React frontend with Vite
+2. Bundles `server.mjs` and all dependencies into a single CJS file with esbuild
+3. Packages everything into a standalone executable with [@yao-pkg/pkg](https://github.com/yao-pkg/pkg)
+
+### CI/CD
+
+Pushing a `v*` tag (e.g. `v1.0.0`) triggers GitHub Actions to build all three platforms and create a release with the executables attached. You can also trigger builds manually from the Actions tab.
 
 ---
 
