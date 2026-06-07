@@ -1,6 +1,6 @@
 import { useRef, useState, type DragEvent } from 'react';
 import type { CalendarEvent } from '../types';
-import { parseIcsFile, parseIcbuDirectory } from '../lib/parseIcs';
+import { parseIcsFile, parseIcbuDirectory, parseIcsText } from '../lib/parseIcs';
 import { ICloudModal } from './ICloudModal';
 import { GoogleCalendarModal } from './GoogleCalendarModal';
 import { StopButton } from './StopButton';
@@ -24,6 +24,7 @@ export function FileDropzone({ onLoaded, savedCredentials, vaultUnlocked, onOpen
   const [error, setError] = useState<string | null>(null);
   const [showICloud, setShowICloud] = useState(false);
   const [showGoogle, setShowGoogle] = useState(false);
+  const [connectingBoth, setConnectingBoth] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const dirRef = useRef<HTMLInputElement>(null);
 
@@ -80,6 +81,68 @@ export function FileDropzone({ onLoaded, savedCredentials, vaultUnlocked, onOpen
       handleIcsFile(file);
     } else {
       setError('Please drop a .ics file or an .icbu folder.');
+    }
+  }
+
+  async function handleConnectBoth() {
+    if (!savedCredentials) return;
+    setConnectingBoth(true);
+    setError(null);
+    const allEvents: CalendarEvent[] = [];
+    const seen = new Set<string>();
+
+    try {
+      // iCloud
+      if (savedCredentials.icloud) {
+        const calRes = await fetch('/api/icloud/calendars', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: savedCredentials.icloud.email, password: savedCredentials.icloud.password }),
+        });
+        if (calRes.ok) {
+          const { calendars } = await calRes.json();
+          for (const cal of calendars as { url: string; name: string }[]) {
+            const evRes = await fetch('/api/icloud/events', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: savedCredentials.icloud.email, password: savedCredentials.icloud.password, calendarUrls: [cal.url] }),
+            });
+            if (evRes.ok) {
+              const { icsBlocks } = await evRes.json();
+              for (const block of icsBlocks as string[]) {
+                for (const ev of parseIcsText(block, cal.name)) {
+                  if (!seen.has(ev.id)) { seen.add(ev.id); allEvents.push(ev); }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Google
+      for (const url of savedCredentials.google) {
+        const res = await fetch('/api/google/ical', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+        if (res.ok) {
+          const { icsText } = await res.json();
+          for (const ev of parseIcsText(icsText)) {
+            if (!seen.has(ev.id)) { seen.add(ev.id); allEvents.push(ev); }
+          }
+        }
+      }
+
+      if (allEvents.length === 0) {
+        setError('No events found from saved credentials.');
+      } else {
+        onLoaded(allEvents);
+      }
+    } catch {
+      setError('Failed to connect. Try connecting individually.');
+    } finally {
+      setConnectingBoth(false);
     }
   }
 
@@ -144,6 +207,16 @@ export function FileDropzone({ onLoaded, savedCredentials, vaultUnlocked, onOpen
               Google Calendar
             </button>
           </div>
+
+          {savedCredentials?.icloud && savedCredentials.google.length > 0 && (
+            <button
+              onClick={handleConnectBoth}
+              disabled={connectingBoth}
+              className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              {connectingBoth ? 'Connecting…' : 'Connect to both (saved credentials)'}
+            </button>
+          )}
 
           {loading && (
             <p className="text-center text-blue-600 mt-4 text-sm">Parsing calendar data…</p>
