@@ -112,8 +112,8 @@ export class Vault {
 
   /** Create a new vault with the given password. */
   create(password) {
-    if (!password || password.length < 1) {
-      throw new Error('Password is required.');
+    if (!password || password.length < 8) {
+      throw new Error('Password must be at least 8 characters.');
     }
     this._data = { icloud: null, google: [], settings: { autoConnect: false } };
     this._password = password;

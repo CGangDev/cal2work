@@ -15,8 +15,8 @@ export function VaultPasswordPrompt({ mode, onSubmit, onCancel, error }: Props) 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (mode === 'create') {
-      if (password.length < 4) {
-        setLocalError('Password must be at least 4 characters.');
+      if (password.length < 8) {
+        setLocalError('Password must be at least 8 characters.');
         return;
       }
       if (password !== confirm) {

@@ -47,6 +47,30 @@ const CALDAV_BASE = 'https://caldav.icloud.com';
 
 const app = express();
 
+// ── Security headers (#10) ───────────────────────────────────────────────────
+if (PRODUCTION) {
+  app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'");
+    next();
+  });
+}
+
+// ── Origin validation / CSRF protection (#9) ─────────────────────────────────
+if (PRODUCTION) {
+  app.use((req, res, next) => {
+    // Allow GET/HEAD (non-mutating) without origin check
+    if (req.method === 'GET' || req.method === 'HEAD') return next();
+    const origin = req.headers.origin;
+    // Allow requests with no origin (same-origin, curl, etc.) or from localhost
+    if (!origin || /^http:\/\/localhost(:\d+)?$/.test(origin) || /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)) {
+      return next();
+    }
+    res.status(403).json({ error: 'Forbidden: invalid origin.' });
+  });
+}
+
 if (PRODUCTION) {
   // In production, frontend is served from the same origin — no CORS needed
   // Serve static frontend files
@@ -66,7 +90,8 @@ if (PRODUCTION) {
   }));
 }
 
-app.use(express.json());
+// Explicit body size limit (#3)
+app.use(express.json({ limit: '100kb' }));
 
 const xmlParser = new XMLParser({
   ignoreAttributes: false,
@@ -253,6 +278,9 @@ app.post('/api/icloud/events', async (req, res) => {
   if (!email || !password || !Array.isArray(calendarUrls) || calendarUrls.length === 0) {
     return res.status(400).json({ error: 'email, password, and calendarUrls are required' });
   }
+  if (calendarUrls.length > 50) {
+    return res.status(400).json({ error: 'Too many calendar URLs (max 50).' });
+  }
 
   const invalidUrl = calendarUrls.find((u) => !isAllowedCalDavUrl(u));
   if (invalidUrl) {
@@ -330,10 +358,30 @@ app.post('/api/google/ical', async (req, res) => {
 
   try {
     const response = await axios.get(url, {
-      maxRedirects: 3,
-      validateStatus: (s) => s < 500,
+      maxRedirects: 0,
+      validateStatus: (s) => s < 400 || s === 404,
       responseType: 'text',
     });
+
+    // Handle redirects manually to re-validate target (#11)
+    if ([301, 302, 307, 308].includes(response.status) && response.headers.location) {
+      const redirectUrl = response.headers.location;
+      if (!isAllowedGoogleIcalUrl(redirectUrl)) {
+        return res.status(400).json({ error: 'Calendar URL redirected to an untrusted host.' });
+      }
+      const redirected = await axios.get(redirectUrl, {
+        maxRedirects: 0,
+        validateStatus: (s) => s < 500,
+        responseType: 'text',
+      });
+      if (redirected.status === 404) {
+        return res.status(400).json({ error: 'Calendar not found. Check the URL and try again.' });
+      }
+      if (redirected.status !== 200 || !String(redirected.data).includes('BEGIN:VCALENDAR')) {
+        return res.status(502).json({ error: 'Response does not appear to be a valid iCal file.' });
+      }
+      return res.json({ icsText: redirected.data });
+    }
 
     if (response.status === 404) {
       return res.status(400).json({ error: 'Calendar not found. Check the URL and try again.' });
@@ -356,17 +404,32 @@ app.post('/api/google/ical', async (req, res) => {
 
 const vault = new Vault();
 
+// Rate limiting for vault unlock (#1)
+let unlockAttempts = 0;
+let unlockLockoutUntil = 0;
+
 app.get('/api/vault/status', (_req, res) => {
   res.json(vault.getStatus());
 });
 
 app.post('/api/vault/unlock', (req, res) => {
+  const now = Date.now();
+  if (now < unlockLockoutUntil) {
+    const waitSec = Math.ceil((unlockLockoutUntil - now) / 1000);
+    return res.status(429).json({ error: `Too many attempts. Try again in ${waitSec}s.` });
+  }
   const { password } = req.body ?? {};
   if (!password) return res.status(400).json({ error: 'Password is required.' });
   try {
     vault.unlock(password);
+    unlockAttempts = 0; // Reset on success
     res.json(vault.getStatus());
   } catch (err) {
+    unlockAttempts++;
+    if (unlockAttempts >= 5) {
+      // Exponential backoff: 30s after 5, 60s after 6, 120s after 7...
+      unlockLockoutUntil = now + Math.min(30000 * Math.pow(2, unlockAttempts - 5), 300000);
+    }
     res.status(401).json({ error: err.message });
   }
 });
@@ -434,7 +497,16 @@ app.post('/api/vault/change-password', (req, res) => {
   }
 });
 
-app.delete('/api/vault', (_req, res) => {
+app.delete('/api/vault', (req, res) => {
+  const { password } = req.body ?? {};
+  if (!vault.isUnlocked) {
+    if (!password) return res.status(401).json({ error: 'Vault password is required to delete.' });
+    try {
+      vault.unlock(password);
+    } catch (err) {
+      return res.status(401).json({ error: err.message });
+    }
+  }
   vault.delete();
   res.json({ ok: true });
 });
@@ -477,7 +549,7 @@ function openBrowser(url) {
 }
 
 function startServer(port, maxAttempts = 10) {
-  const server = app.listen(port);
+  const server = app.listen(port, '127.0.0.1');
 
   server.on('listening', () => {
     const url = `http://localhost:${port}`;
