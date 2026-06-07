@@ -197,7 +197,6 @@ export function FileDropzone({ onLoaded, savedCredentials, vaultUnlocked, onOpen
           onClose={() => setShowICloud(false)}
           savedEmail={savedCredentials?.icloud?.email}
           savedPassword={savedCredentials?.icloud?.password}
-          vaultUnlocked={vaultUnlocked}
         />
       )}
 
@@ -206,7 +205,6 @@ export function FileDropzone({ onLoaded, savedCredentials, vaultUnlocked, onOpen
           onLoaded={(events) => { setShowGoogle(false); onLoaded(events); }}
           onClose={() => setShowGoogle(false)}
           savedUrls={savedCredentials?.google}
-          vaultUnlocked={vaultUnlocked}
         />
       )}
     </>

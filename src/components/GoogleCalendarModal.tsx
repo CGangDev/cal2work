@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { CalendarEvent } from '../types';
 import { parseIcsText } from '../lib/parseIcs';
+import { saveCredentialsToVault } from '../lib/vaultClient';
 
 // In production, API is on the same origin; in dev, Vite proxies /api to the proxy server
 const PROXY = '';
@@ -9,10 +10,9 @@ interface Props {
   onLoaded: (events: CalendarEvent[]) => void;
   onClose: () => void;
   savedUrls?: string[];
-  vaultUnlocked?: boolean;
 }
 
-export function GoogleCalendarModal({ onLoaded, onClose, savedUrls, vaultUnlocked }: Props) {
+export function GoogleCalendarModal({ onLoaded, onClose, savedUrls }: Props) {
   const [urls, setUrls] = useState<string[]>(savedUrls && savedUrls.length > 0 ? savedUrls : ['']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,12 +64,8 @@ export function GoogleCalendarModal({ onLoaded, onClose, savedUrls, vaultUnlocke
       }
 
       // Save to vault if requested
-      if (saveToVault && vaultUnlocked) {
-        fetch('/api/vault/save', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ google: validUrls }),
-        }).catch(() => {});
+      if (saveToVault) {
+        await saveCredentialsToVault({ google: validUrls });
       }
 
       onLoaded(allEvents);
@@ -152,17 +148,15 @@ export function GoogleCalendarModal({ onLoaded, onClose, savedUrls, vaultUnlocke
 
           {error && <p className="text-sm text-red-500">{error}</p>}
 
-          {vaultUnlocked && (
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={saveToVault}
-                onChange={(e) => setSaveToVault(e.target.checked)}
-                className="rounded accent-blue-500"
-              />
-              <span className="text-sm text-gray-600">Save URLs to vault</span>
-            </label>
-          )}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={saveToVault}
+              onChange={(e) => setSaveToVault(e.target.checked)}
+              className="rounded accent-blue-500"
+            />
+            <span className="text-sm text-gray-600">Save URLs to vault</span>
+          </label>
 
           <div className="flex gap-3">
             <button

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { CalendarEvent } from '../types';
 import { parseIcsText } from '../lib/parseIcs';
+import { saveCredentialsToVault } from '../lib/vaultClient';
 
 // In production, API is on the same origin; in dev, Vite proxies /api to the proxy server
 const PROXY = '';
@@ -17,10 +18,9 @@ interface Props {
   onClose: () => void;
   savedEmail?: string;
   savedPassword?: string;
-  vaultUnlocked?: boolean;
 }
 
-export function ICloudModal({ onLoaded, onClose, savedEmail, savedPassword, vaultUnlocked }: Props) {
+export function ICloudModal({ onLoaded, onClose, savedEmail, savedPassword }: Props) {
   const [step, setStep] = useState<Step>('credentials');
   const [email, setEmail] = useState(savedEmail ?? '');
   const [password, setPassword] = useState(savedPassword ?? '');
@@ -82,12 +82,8 @@ export function ICloudModal({ onLoaded, onClose, savedEmail, savedPassword, vaul
       }
 
       // Save to vault if requested
-      if (saveToVault && vaultUnlocked) {
-        fetch('/api/vault/save', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ icloud: { email, password } }),
-        }).catch(() => {}); // Best-effort, don't block the user
+      if (saveToVault) {
+        await saveCredentialsToVault({ icloud: { email, password } });
       }
 
       onLoaded(allEvents);
@@ -156,17 +152,15 @@ export function ICloudModal({ onLoaded, onClose, savedEmail, savedPassword, vaul
 
               {error && <p className="text-sm text-red-500">{error}</p>}
 
-              {vaultUnlocked && (
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={saveToVault}
-                    onChange={(e) => setSaveToVault(e.target.checked)}
-                    className="rounded accent-blue-500"
-                  />
-                  <span className="text-sm text-gray-600">Save credentials to vault</span>
-                </label>
-              )}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={saveToVault}
+                  onChange={(e) => setSaveToVault(e.target.checked)}
+                  className="rounded accent-blue-500"
+                />
+                <span className="text-sm text-gray-600">Save credentials to vault</span>
+              </label>
 
               <button
                 type="submit"
