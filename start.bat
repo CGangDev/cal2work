@@ -1,6 +1,6 @@
 @echo off
 setlocal
-title Calendar Export
+title Cal2Work
 
 cd /d "%~dp0"
 
@@ -34,7 +34,7 @@ for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":5174 "') do (
     taskkill /PID %%a /F >nul 2>&1
 )
 
-echo Starting Calendar Export...
+echo Starting Cal2Work...
 echo.
 
 :: ── Start proxy server in the background ─────────────────────────────────────

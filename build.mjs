@@ -76,7 +76,7 @@ if (existsSync(RELEASE_DIR)) rmSync(RELEASE_DIR, { recursive: true });
 mkdirSync(RELEASE_DIR, { recursive: true });
 
 const targetStr = targets.join(',');
-run(`npx @yao-pkg/pkg . --targets ${targetStr} --output "${path.join(RELEASE_DIR, 'calendar-export')}"`, BUILD_DIR);
+run(`npx @yao-pkg/pkg . --targets ${targetStr} --output "${path.join(RELEASE_DIR, 'cal2work')}"`, BUILD_DIR);
 
 // ── Step 4: Report results ───────────────────────────────────────────────────
 console.log('\n  Output:');

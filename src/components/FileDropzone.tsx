@@ -78,7 +78,7 @@ export function FileDropzone({ onLoaded }: Props) {
     <>
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-8">
         <div className="w-full max-w-lg">
-          <h1 className="text-3xl font-semibold text-gray-800 mb-2 text-center">Calendar Export</h1>
+          <h1 className="text-3xl font-semibold text-gray-800 mb-2 text-center">Cal2Work</h1>
           <p className="text-gray-500 text-center mb-8">
             Open an Apple .ics file, .icbu backup, or connect to iCloud or Google Calendar directly.
           </p>

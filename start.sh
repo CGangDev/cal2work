@@ -47,7 +47,7 @@ kill_port 5174
 kill_port 5175
 sleep 1
 
-echo "Starting Calendar Export..."
+echo "Starting Cal2Work..."
 echo ""
 
 # ── Start the proxy server in background ─────────────────────────────────────

@@ -16,13 +16,13 @@ jobs:
         include:
           - os: ubuntu-latest
             platform: linux
-            artifact: calendar-export
+            artifact: cal2work
           - os: windows-latest
             platform: win
-            artifact: calendar-export.exe
+            artifact: cal2work.exe
           - os: macos-latest
             platform: macos
-            artifact: calendar-export
+            artifact: cal2work
 
     runs-on: ${{ matrix.os }}
 
@@ -40,7 +40,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: calendar-export-${{ matrix.platform }}
+          name: cal2work-${{ matrix.platform }}
           path: release/${{ matrix.artifact }}
 
   release:
@@ -55,14 +55,14 @@ jobs:
 
       - name: Prepare release files
         run: |
-          mv artifacts/calendar-export-linux/calendar-export calendar-export-linux
-          mv artifacts/calendar-export-win/calendar-export.exe calendar-export-win.exe
-          mv artifacts/calendar-export-macos/calendar-export calendar-export-macos
+          mv artifacts/cal2work-linux/cal2work cal2work-linux
+          mv artifacts/cal2work-win/cal2work.exe cal2work-win.exe
+          mv artifacts/cal2work-macos/cal2work cal2work-macos
 
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            calendar-export-linux
-            calendar-export-win.exe
-            calendar-export-macos
+            cal2work-linux
+            cal2work-win.exe
+            cal2work-macos
           generate_release_notes: true

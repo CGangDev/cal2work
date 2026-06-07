@@ -1,4 +1,4 @@
-# Calendar Export
+# Cal2Work
 
 A browser-based tool for reviewing Apple and Google Calendar events and exporting a curated selection to an Outlook-compatible `.ics` file. Control which events include full details and which appear as anonymous time blocks.
 
@@ -8,9 +8,9 @@ Download the latest release for your platform from the [Releases page](../../rel
 
 | Platform | File |
 |---|---|
-| Linux | `calendar-export-linux` |
-| Windows | `calendar-export-win.exe` |
-| macOS | `calendar-export-macos` |
+| Linux | `cal2work-linux` |
+| Windows | `cal2work-win.exe` |
+| macOS | `cal2work-macos` |
 
 Run the executable. It starts a local server and opens your default browser automatically. No installation, no dependencies, no Node.js required.
 
@@ -18,7 +18,7 @@ Run the executable. It starts a local server and opens your default browser auto
 >
 > **macOS:** You may need to right-click → Open the first time, or allow it in System Settings → Privacy & Security.
 >
-> **Linux:** Mark it executable first: `chmod +x calendar-export-linux`
+> **Linux:** Mark it executable first: `chmod +x cal2work-linux`
 
 ---
 
@@ -46,7 +46,7 @@ To export from Apple Calendar: File → Export → Export… (`.ics`) or File �
 Apple requires an **app-specific password** — your regular Apple ID password won't work here.
 
 1. Go to [appleid.apple.com](https://appleid.apple.com) → Sign-In and Security → App-Specific Passwords
-2. Click **Generate an app-specific password**, give it a name (e.g. "Calendar Export"), and copy the 16-character code
+2. Click **Generate an app-specific password**, give it a name (e.g. "Cal2Work"), and copy the 16-character code
 3. Enter your Apple ID email and paste that code into the app
 
 Two-factor authentication must be enabled on your Apple ID for app-specific passwords to be available.
@@ -107,7 +107,7 @@ Click **Stop app** in the top-right corner of the app, close the terminal/execut
 
 ## Security & privacy
 
-Calendar Export runs entirely on your machine. There is no remote server, no cloud service, and no account registration. Your credentials are never stored to disk and are only held in memory for the duration of your session.
+Cal2Work runs entirely on your machine. There is no remote server, no cloud service, and no account registration. Your credentials are never stored to disk and are only held in memory for the duration of your session.
 
 The app does not use HTTPS for the local web page (`http://localhost:3000`) because all communication stays on your computer's loopback interface — it never touches a network. Browsers treat localhost as a [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts).
 
@@ -116,7 +116,7 @@ When you connect to iCloud or Google Calendar, authentication does leave your ma
 ```mermaid
 sequenceDiagram
     participant Browser
-    participant App as Calendar Export<br/>(localhost)
+    participant App as Cal2Work<br/>(localhost)
     participant Apple as Apple / Google<br/>(TLS encrypted)
 
     Browser->>App: Credentials entered in UI<br/>(never leaves localhost)

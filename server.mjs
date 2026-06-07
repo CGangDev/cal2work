@@ -394,7 +394,7 @@ function startServer(port, maxAttempts = 10) {
   server.on('listening', () => {
     const url = `http://localhost:${port}`;
     if (PRODUCTION) {
-      console.log(`Calendar Export → ${url}`);
+      console.log(`Cal2Work → ${url}`);
       console.log('Press Ctrl+C to stop.');
       openBrowser(url);
     } else {

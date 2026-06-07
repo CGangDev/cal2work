@@ -6,4 +6,4 @@ release/
 *.local
 .claude/
 .vscode/
-Calendar Export.desktop
+*.desktop

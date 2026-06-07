@@ -15,7 +15,7 @@ elif command -v mate-terminal &>/dev/null; then
 elif command -v xterm &>/dev/null; then
     xterm -e bash "$START"
 else
-    notify-send "Calendar Export" "No terminal emulator found. Install xterm: sudo apt install xterm" 2>/dev/null
+    notify-send "Cal2Work" "No terminal emulator found. Install xterm: sudo apt install xterm" 2>/dev/null
     echo "No terminal emulator found. Install one with: sudo apt install xterm" >&2
     exit 1
 fi
