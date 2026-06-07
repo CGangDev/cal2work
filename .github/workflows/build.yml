@@ -1,0 +1,68 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            artifact: calendar-export
+          - os: windows-latest
+            platform: win
+            artifact: calendar-export.exe
+          - os: macos-latest
+            platform: macos
+            artifact: calendar-export
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: node build.mjs ${{ matrix.platform }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calendar-export-${{ matrix.platform }}
+          path: release/${{ matrix.artifact }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release files
+        run: |
+          mv artifacts/calendar-export-linux/calendar-export calendar-export-linux
+          mv artifacts/calendar-export-win/calendar-export.exe calendar-export-win.exe
+          mv artifacts/calendar-export-macos/calendar-export calendar-export-macos
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            calendar-export-linux
+            calendar-export-win.exe
+            calendar-export-macos
+          generate_release_notes: true

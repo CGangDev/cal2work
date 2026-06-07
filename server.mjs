@@ -10,17 +10,22 @@ import { existsSync } from 'fs';
 const IS_PACKAGED = Boolean(process.pkg);
 const PRODUCTION = IS_PACKAGED || process.env.NODE_ENV === 'production';
 
-// Path resolution: in pkg, use process.execPath directory for external files.
-// In normal Node.js, use import.meta.url. In CJS bundle (esbuild), import.meta is empty so use __dirname.
-let APP_DIR;
+// Path resolution for the dist/ folder:
+// - In pkg: assets are embedded in the snapshot filesystem (/snapshot/...)
+//   We use __dirname which points into the snapshot, then resolve dist relative to it.
+// - In normal Node.js production mode: dist is next to server.mjs
+// - In dev mode: dist is not served (Vite handles it)
+let DIST_DIR;
 if (IS_PACKAGED) {
-  APP_DIR = path.dirname(process.execPath);
+  // pkg embeds assets relative to the package.json; __dirname in the CJS bundle
+  // points to the snapshot root where server.cjs lives
+  DIST_DIR = path.join(__dirname, 'dist');
 } else if (import.meta.url) {
-  APP_DIR = path.dirname(new URL(import.meta.url).pathname);
+  DIST_DIR = path.join(path.dirname(new URL(import.meta.url).pathname), 'dist');
 } else if (typeof __dirname !== 'undefined') {
-  APP_DIR = __dirname;
+  DIST_DIR = path.join(__dirname, 'dist');
 } else {
-  APP_DIR = process.cwd();
+  DIST_DIR = path.join(process.cwd(), 'dist');
 }
 
 // iCloud CalDAV uses caldav.icloud.com and regional variants like p66-caldav.icloud.com
@@ -43,10 +48,8 @@ const app = express();
 if (PRODUCTION) {
   // In production, frontend is served from the same origin — no CORS needed
   // Serve static frontend files
-  const distPath = path.join(APP_DIR, 'dist');
-
-  if (existsSync(distPath)) {
-    app.use(express.static(distPath));
+  if (existsSync(DIST_DIR)) {
+    app.use(express.static(DIST_DIR));
   }
 } else {
   // In dev, allow CORS from Vite dev server
@@ -371,8 +374,7 @@ app.post('/api/shutdown', (_req, res) => {
 // In production, serve the SPA — any non-API route returns index.html
 if (PRODUCTION) {
   app.get('/{*splat}', (_req, res) => {
-    const distPath = path.join(APP_DIR, 'dist');
-    res.sendFile(path.join(distPath, 'index.html'));
+    res.sendFile(path.join(DIST_DIR, 'index.html'));
   });
 }
 

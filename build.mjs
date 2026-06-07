@@ -9,7 +9,7 @@
  *   node build.mjs macos        — build for macOS only
  */
 import { execSync } from 'child_process';
-import { mkdirSync, cpSync, writeFileSync, rmSync, existsSync, readFileSync } from 'fs';
+import { mkdirSync, cpSync, writeFileSync, rmSync, existsSync, readFileSync, readdirSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -44,7 +44,7 @@ function run(cmd, cwd = ROOT) {
 console.log('\n📦 Building frontend...');
 run('npm run build');
 
-// ── Step 2: Prepare a clean build directory with only runtime deps ───────────
+// ── Step 2: Prepare a clean build directory ──────────────────────────────────
 console.log('\n📁 Preparing production build directory...');
 
 if (existsSync(BUILD_DIR)) rmSync(BUILD_DIR, { recursive: true });
@@ -52,10 +52,9 @@ mkdirSync(BUILD_DIR, { recursive: true });
 
 // Bundle server.mjs into a single CJS file (pkg handles CJS reliably)
 console.log('  Bundling server code...');
-const esbuildOut = path.join(BUILD_DIR, 'server.cjs');
-run(`npx esbuild server.mjs --bundle --platform=node --format=cjs --outfile="${esbuildOut}"`);
+run(`npx esbuild server.mjs --bundle --platform=node --format=cjs --outfile="${path.join(BUILD_DIR, 'server.cjs')}"`);
 
-// Copy built frontend
+// Copy built frontend into the build directory (pkg embeds these as assets)
 cpSync(path.join(ROOT, 'dist'), path.join(BUILD_DIR, 'dist'), { recursive: true });
 
 // Create a minimal package.json for pkg
@@ -73,35 +72,21 @@ writeFileSync(path.join(BUILD_DIR, 'package.json'), JSON.stringify(prodPkg, null
 
 // ── Step 3: Package with pkg ─────────────────────────────────────────────────
 console.log('\n🔨 Packaging executables...');
+if (existsSync(RELEASE_DIR)) rmSync(RELEASE_DIR, { recursive: true });
 mkdirSync(RELEASE_DIR, { recursive: true });
 
 const targetStr = targets.join(',');
 run(`npx @yao-pkg/pkg . --targets ${targetStr} --output "${path.join(RELEASE_DIR, 'calendar-export')}"`, BUILD_DIR);
 
-// ── Step 4: Copy dist alongside each executable (pkg assets are embedded,
-//    but we also place them externally as a fallback for path resolution) ─────
-// Actually pkg embeds the assets in the snapshot filesystem, so this isn't
-// needed. But for the IS_PACKAGED path resolution (process.execPath dir),
-// we should copy dist next to the executables.
-for (const target of targets) {
-  const platform = target.split('-')[1];
-  const ext = platform === 'win' ? '.exe' : '';
-  const exeName = `calendar-export-${platform}${ext}`;
-  const exePath = path.join(RELEASE_DIR, exeName);
-
-  // pkg names outputs as calendar-export-linux, calendar-export-win.exe, etc.
-  // when multiple targets are specified
-  if (existsSync(exePath)) {
-    console.log(`  ✓ ${exeName}`);
-  }
+// ── Step 4: Report results ───────────────────────────────────────────────────
+console.log('\n  Output:');
+for (const file of readdirSync(RELEASE_DIR)) {
+  console.log(`  ✓ ${file}`);
 }
-
-// Copy dist to release dir so it sits alongside the executables
-cpSync(path.join(ROOT, 'dist'), path.join(RELEASE_DIR, 'dist'), { recursive: true });
 
 // ── Cleanup ──────────────────────────────────────────────────────────────────
 console.log('\n🧹 Cleaning up...');
 rmSync(BUILD_DIR, { recursive: true });
 
-console.log('\n✅ Done! Executables are in the release/ directory.');
-console.log('   Distribute the executable + dist/ folder together.\n');
+console.log('\n✅ Done! Single-file executables are in the release/ directory.');
+console.log('   Each executable is fully self-contained (no external files needed).\n');
