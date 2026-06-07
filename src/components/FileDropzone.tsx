@@ -15,9 +15,10 @@ interface Props {
   onLoaded: (events: CalendarEvent[]) => void;
   savedCredentials?: VaultCredentials | null;
   vaultUnlocked?: boolean;
+  onOpenVaultSettings?: () => void;
 }
 
-export function FileDropzone({ onLoaded, savedCredentials, vaultUnlocked }: Props) {
+export function FileDropzone({ onLoaded, savedCredentials, vaultUnlocked, onOpenVaultSettings }: Props) {
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -151,7 +152,16 @@ export function FileDropzone({ onLoaded, savedCredentials, vaultUnlocked }: Prop
             <p className="text-center text-red-500 mt-4 text-sm">{error}</p>
           )}
 
-          <div className="mt-8 text-center">
+          <div className="mt-8 text-center flex items-center justify-center gap-4">
+            {vaultUnlocked && onOpenVaultSettings && (
+              <button
+                onClick={onOpenVaultSettings}
+                className="text-gray-400 hover:text-gray-600 text-lg"
+                title="Vault settings"
+              >
+                ⚙
+              </button>
+            )}
             <StopButton />
           </div>
         </div>

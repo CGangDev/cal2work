@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import type { CalendarEvent, SelectedEvent } from './types';
+import { parseIcsText } from './lib/parseIcs';
 import { FileDropzone } from './components/FileDropzone';
 import { CalendarView } from './components/CalendarView';
 import { TimeframeFilter } from './components/TimeframeFilter';
@@ -7,6 +8,7 @@ import { SelectedEventsSidebar } from './components/SelectedEventsSidebar';
 import { StopButton } from './components/StopButton';
 import { VaultUnlockModal } from './components/VaultUnlockModal';
 import { VaultCreateModal } from './components/VaultCreateModal';
+import { VaultSettingsModal } from './components/VaultSettingsModal';
 
 interface VaultStatus {
   exists: boolean;
@@ -44,7 +46,9 @@ export default function App() {
   const [vaultStatus, setVaultStatus] = useState<VaultStatus | null>(null);
   const [showUnlock, setShowUnlock] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [showVaultSettings, setShowVaultSettings] = useState(false);
   const [savedCredentials, setSavedCredentials] = useState<VaultCredentials | null>(null);
+  const [autoConnecting, setAutoConnecting] = useState(false);
 
   // Check vault status on mount
   useEffect(() => {
@@ -72,9 +76,72 @@ export default function App() {
       if (res.ok) {
         const creds: VaultCredentials = await res.json();
         setSavedCredentials(creds);
+
+        // Auto-connect if enabled
+        if (creds.autoConnect && (creds.icloud || creds.google.length > 0)) {
+          setAutoConnecting(true);
+          const loadedEvents = await performAutoConnect(creds);
+          if (loadedEvents.length > 0) {
+            handleLoaded(loadedEvents);
+          }
+          setAutoConnecting(false);
+        }
       }
     } catch { /* ignore */ }
     setVaultChecked(true);
+  }
+
+  async function performAutoConnect(creds: VaultCredentials): Promise<CalendarEvent[]> {
+    const allEvents: CalendarEvent[] = [];
+    const seen = new Set<string>();
+
+    // Connect to iCloud
+    if (creds.icloud) {
+      try {
+        const calRes = await fetch('/api/icloud/calendars', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: creds.icloud.email, password: creds.icloud.password }),
+        });
+        if (calRes.ok) {
+          const { calendars } = await calRes.json();
+          for (const cal of calendars) {
+            const evRes = await fetch('/api/icloud/events', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: creds.icloud.email, password: creds.icloud.password, calendarUrls: [cal.url] }),
+            });
+            if (evRes.ok) {
+              const { icsBlocks } = await evRes.json();
+              for (const block of icsBlocks) {
+                for (const ev of parseIcsText(block, cal.name)) {
+                  if (!seen.has(ev.id)) { seen.add(ev.id); allEvents.push(ev); }
+                }
+              }
+            }
+          }
+        }
+      } catch { /* continue with Google */ }
+    }
+
+    // Connect to Google Calendar
+    for (const url of creds.google) {
+      try {
+        const res = await fetch('/api/google/ical', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+        if (res.ok) {
+          const { icsText } = await res.json();
+          for (const ev of parseIcsText(icsText)) {
+            if (!seen.has(ev.id)) { seen.add(ev.id); allEvents.push(ev); }
+          }
+        }
+      } catch { /* continue */ }
+    }
+
+    return allEvents;
   }
 
   function handleVaultSkip() {
@@ -169,17 +236,30 @@ export default function App() {
   if (showCreate) {
     return <VaultCreateModal onCreated={handleVaultCreated} onCancel={handleCreateCancel} />;
   }
-  if (!vaultChecked) {
-    return null; // Loading vault status
+  if (!vaultChecked || autoConnecting) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <p className="text-gray-500 text-sm">{autoConnecting ? 'Connecting to saved calendars…' : ''}</p>
+      </div>
+    );
   }
 
   if (events.length === 0) {
     return (
-      <FileDropzone
-        onLoaded={handleLoaded}
-        savedCredentials={savedCredentials}
-        vaultUnlocked={vaultStatus?.unlocked ?? false}
-      />
+      <>
+        <FileDropzone
+          onLoaded={handleLoaded}
+          savedCredentials={savedCredentials}
+          vaultUnlocked={vaultStatus?.unlocked ?? false}
+          onOpenVaultSettings={() => setShowVaultSettings(true)}
+        />
+        {showVaultSettings && (
+          <VaultSettingsModal
+            onClose={() => setShowVaultSettings(false)}
+            onDeleted={() => { setVaultStatus(null); setSavedCredentials(null); setShowVaultSettings(false); }}
+          />
+        )}
+      </>
     );
   }
 
@@ -203,6 +283,15 @@ export default function App() {
           <span className="text-sm text-gray-400">
             {visibleEvents.length} event{visibleEvents.length !== 1 ? 's' : ''}
           </span>
+          {vaultStatus?.unlocked && (
+            <button
+              onClick={() => setShowVaultSettings(true)}
+              className="text-gray-400 hover:text-gray-600 text-sm"
+              title="Vault settings"
+            >
+              ⚙
+            </button>
+          )}
           <StopButton />
         </div>
       </header>
@@ -224,6 +313,13 @@ export default function App() {
           onClearAll={handleClearAll}
         />
       </div>
+
+      {showVaultSettings && (
+        <VaultSettingsModal
+          onClose={() => setShowVaultSettings(false)}
+          onDeleted={() => { setVaultStatus(null); setSavedCredentials(null); setShowVaultSettings(false); }}
+        />
+      )}
     </div>
   );
 }
