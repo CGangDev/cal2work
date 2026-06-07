@@ -5,11 +5,19 @@ import { ICloudModal } from './ICloudModal';
 import { GoogleCalendarModal } from './GoogleCalendarModal';
 import { StopButton } from './StopButton';
 
-interface Props {
-  onLoaded: (events: CalendarEvent[]) => void;
+interface VaultCredentials {
+  icloud: { email: string; password: string } | null;
+  google: string[];
+  autoConnect: boolean;
 }
 
-export function FileDropzone({ onLoaded }: Props) {
+interface Props {
+  onLoaded: (events: CalendarEvent[]) => void;
+  savedCredentials?: VaultCredentials | null;
+  vaultUnlocked?: boolean;
+}
+
+export function FileDropzone({ onLoaded, savedCredentials, vaultUnlocked }: Props) {
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -177,6 +185,9 @@ export function FileDropzone({ onLoaded }: Props) {
         <ICloudModal
           onLoaded={(events) => { setShowICloud(false); onLoaded(events); }}
           onClose={() => setShowICloud(false)}
+          savedEmail={savedCredentials?.icloud?.email}
+          savedPassword={savedCredentials?.icloud?.password}
+          vaultUnlocked={vaultUnlocked}
         />
       )}
 
@@ -184,6 +195,8 @@ export function FileDropzone({ onLoaded }: Props) {
         <GoogleCalendarModal
           onLoaded={(events) => { setShowGoogle(false); onLoaded(events); }}
           onClose={() => setShowGoogle(false)}
+          savedUrls={savedCredentials?.google}
+          vaultUnlocked={vaultUnlocked}
         />
       )}
     </>

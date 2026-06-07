@@ -8,12 +8,15 @@ const PROXY = '';
 interface Props {
   onLoaded: (events: CalendarEvent[]) => void;
   onClose: () => void;
+  savedUrls?: string[];
+  vaultUnlocked?: boolean;
 }
 
-export function GoogleCalendarModal({ onLoaded, onClose }: Props) {
-  const [urls, setUrls] = useState<string[]>(['']);
+export function GoogleCalendarModal({ onLoaded, onClose, savedUrls, vaultUnlocked }: Props) {
+  const [urls, setUrls] = useState<string[]>(savedUrls && savedUrls.length > 0 ? savedUrls : ['']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saveToVault, setSaveToVault] = useState(false);
 
   function setUrl(index: number, value: string) {
     setUrls((prev) => prev.map((u, i) => (i === index ? value : u)));
@@ -58,6 +61,15 @@ export function GoogleCalendarModal({ onLoaded, onClose }: Props) {
       if (allEvents.length === 0) {
         setError('No events found in the provided calendar URL(s).');
         return;
+      }
+
+      // Save to vault if requested
+      if (saveToVault && vaultUnlocked) {
+        fetch('/api/vault/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ google: validUrls }),
+        }).catch(() => {});
       }
 
       onLoaded(allEvents);
@@ -139,6 +151,18 @@ export function GoogleCalendarModal({ onLoaded, onClose }: Props) {
           </div>
 
           {error && <p className="text-sm text-red-500">{error}</p>}
+
+          {vaultUnlocked && (
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={saveToVault}
+                onChange={(e) => setSaveToVault(e.target.checked)}
+                className="rounded accent-blue-500"
+              />
+              <span className="text-sm text-gray-600">Save URLs to vault</span>
+            </label>
+          )}
 
           <div className="flex gap-3">
             <button

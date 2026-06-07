@@ -1,10 +1,26 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { CalendarEvent, SelectedEvent } from './types';
 import { FileDropzone } from './components/FileDropzone';
 import { CalendarView } from './components/CalendarView';
 import { TimeframeFilter } from './components/TimeframeFilter';
 import { SelectedEventsSidebar } from './components/SelectedEventsSidebar';
 import { StopButton } from './components/StopButton';
+import { VaultUnlockModal } from './components/VaultUnlockModal';
+import { VaultCreateModal } from './components/VaultCreateModal';
+
+interface VaultStatus {
+  exists: boolean;
+  unlocked: boolean;
+  hasIcloud: boolean;
+  googleUrlCount: number;
+  autoConnect: boolean;
+}
+
+interface VaultCredentials {
+  icloud: { email: string; password: string } | null;
+  google: string[];
+  autoConnect: boolean;
+}
 
 function toDateString(d: Date): string {
   return d.toISOString().split('T')[0];
@@ -13,7 +29,7 @@ function toDateString(d: Date): string {
 function defaultRange(): { start: string; end: string } {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear() + 1, now.getMonth() + 1, 0); // last day of same month next year
+  const end = new Date(now.getFullYear() + 1, now.getMonth() + 1, 0);
   return { start: toDateString(start), end: toDateString(end) };
 }
 
@@ -22,6 +38,65 @@ export default function App() {
   const [selected, setSelected] = useState<SelectedEvent[]>([]);
   const [rangeStart, setRangeStart] = useState('');
   const [rangeEnd, setRangeEnd] = useState('');
+
+  // Vault state
+  const [vaultChecked, setVaultChecked] = useState(false);
+  const [vaultStatus, setVaultStatus] = useState<VaultStatus | null>(null);
+  const [showUnlock, setShowUnlock] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [savedCredentials, setSavedCredentials] = useState<VaultCredentials | null>(null);
+
+  // Check vault status on mount
+  useEffect(() => {
+    fetch('/api/vault/status')
+      .then((r) => r.json())
+      .then((status: VaultStatus) => {
+        setVaultStatus(status);
+        if (status.exists && !status.unlocked) {
+          setShowUnlock(true);
+        } else {
+          setVaultChecked(true);
+        }
+      })
+      .catch(() => {
+        setVaultChecked(true);
+      });
+  }, []);
+
+  async function handleVaultUnlocked(status: VaultStatus) {
+    setVaultStatus(status);
+    setShowUnlock(false);
+    // Fetch credentials for pre-filling
+    try {
+      const res = await fetch('/api/vault/credentials', { method: 'POST' });
+      if (res.ok) {
+        const creds: VaultCredentials = await res.json();
+        setSavedCredentials(creds);
+      }
+    } catch { /* ignore */ }
+    setVaultChecked(true);
+  }
+
+  function handleVaultSkip() {
+    setShowUnlock(false);
+    setVaultChecked(true);
+  }
+
+  function handleShowCreate() {
+    setShowUnlock(false);
+    setShowCreate(true);
+  }
+
+  function handleVaultCreated() {
+    setShowCreate(false);
+    setVaultStatus({ exists: true, unlocked: true, hasIcloud: false, googleUrlCount: 0, autoConnect: false });
+    setVaultChecked(true);
+  }
+
+  function handleCreateCancel() {
+    setShowCreate(false);
+    setVaultChecked(true);
+  }
 
   function handleLoaded(loaded: CalendarEvent[]) {
     setEvents(loaded);
@@ -87,8 +162,25 @@ export default function App() {
     setSelected((prev) => prev.filter((s) => visibleSet.has(s.id)));
   }
 
+  // Show vault modals before anything else
+  if (showUnlock) {
+    return <VaultUnlockModal onUnlocked={handleVaultUnlocked} onSkip={handleVaultSkip} onCreate={handleShowCreate} />;
+  }
+  if (showCreate) {
+    return <VaultCreateModal onCreated={handleVaultCreated} onCancel={handleCreateCancel} />;
+  }
+  if (!vaultChecked) {
+    return null; // Loading vault status
+  }
+
   if (events.length === 0) {
-    return <FileDropzone onLoaded={handleLoaded} />;
+    return (
+      <FileDropzone
+        onLoaded={handleLoaded}
+        savedCredentials={savedCredentials}
+        vaultUnlocked={vaultStatus?.unlocked ?? false}
+      />
+    );
   }
 
   return (

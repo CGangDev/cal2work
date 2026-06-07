@@ -6,6 +6,7 @@ import { exec } from 'child_process';
 import path from 'path';
 import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
+import { Vault } from './src/lib/vault.mjs';
 
 // Determine if we're running as a packaged executable (pkg sets process.pkg)
 const IS_PACKAGED = Boolean(process.pkg);
@@ -349,6 +350,93 @@ app.post('/api/google/ical', async (req, res) => {
     console.error('[/api/google/ical]', err.message);
     res.status(500).json({ error: 'Failed to fetch Google Calendar. Check the URL and try again.' });
   }
+});
+
+// ── Vault routes ────────────────────────────────────────────────────────────
+
+const vault = new Vault();
+
+app.get('/api/vault/status', (_req, res) => {
+  res.json(vault.getStatus());
+});
+
+app.post('/api/vault/unlock', (req, res) => {
+  const { password } = req.body ?? {};
+  if (!password) return res.status(400).json({ error: 'Password is required.' });
+  try {
+    vault.unlock(password);
+    res.json(vault.getStatus());
+  } catch (err) {
+    res.status(401).json({ error: err.message });
+  }
+});
+
+app.post('/api/vault/lock', (_req, res) => {
+  vault.lock();
+  res.json({ ok: true });
+});
+
+app.post('/api/vault/create', (req, res) => {
+  const { password } = req.body ?? {};
+  if (!password) return res.status(400).json({ error: 'Password is required.' });
+  try {
+    vault.create(password);
+    res.json(vault.getStatus());
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/vault/save', (req, res) => {
+  const { icloud, google, autoConnect } = req.body ?? {};
+  try {
+    if (icloud !== undefined) {
+      if (icloud === null) {
+        vault.clearIcloud();
+      } else {
+        vault.saveIcloud(icloud.email, icloud.password);
+      }
+    }
+    if (google !== undefined) {
+      if (google === null || (Array.isArray(google) && google.length === 0)) {
+        vault.clearGoogle();
+      } else {
+        vault.saveGoogle(google);
+      }
+    }
+    if (autoConnect !== undefined) {
+      vault.setAutoConnect(autoConnect);
+    }
+    res.json(vault.getStatus());
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/vault/credentials', (_req, res) => {
+  try {
+    res.json(vault.getCredentials());
+  } catch (err) {
+    res.status(403).json({ error: err.message });
+  }
+});
+
+app.post('/api/vault/change-password', (req, res) => {
+  const { oldPassword, newPassword } = req.body ?? {};
+  if (!oldPassword || !newPassword) {
+    return res.status(400).json({ error: 'Both oldPassword and newPassword are required.' });
+  }
+  try {
+    vault.changePassword(oldPassword, newPassword);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(401).json({ error: err.message });
+  }
+});
+
+app.delete('/api/vault', (_req, res) => {
+  vault.delete();
+  res.json({ ok: true });
 });
 
 // Shut down the app

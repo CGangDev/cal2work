@@ -15,16 +15,20 @@ type Step = 'credentials' | 'calendars' | 'loading-events';
 interface Props {
   onLoaded: (events: CalendarEvent[]) => void;
   onClose: () => void;
+  savedEmail?: string;
+  savedPassword?: string;
+  vaultUnlocked?: boolean;
 }
 
-export function ICloudModal({ onLoaded, onClose }: Props) {
+export function ICloudModal({ onLoaded, onClose, savedEmail, savedPassword, vaultUnlocked }: Props) {
   const [step, setStep] = useState<Step>('credentials');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState(savedEmail ?? '');
+  const [password, setPassword] = useState(savedPassword ?? '');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [calendars, setCalendars] = useState<Calendar[]>([]);
   const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set());
+  const [saveToVault, setSaveToVault] = useState(false);
 
   async function handleConnect(e: React.FormEvent) {
     e.preventDefault();
@@ -75,6 +79,15 @@ export function ICloudModal({ onLoaded, onClose }: Props) {
             }
           }
         }
+      }
+
+      // Save to vault if requested
+      if (saveToVault && vaultUnlocked) {
+        fetch('/api/vault/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ icloud: { email, password } }),
+        }).catch(() => {}); // Best-effort, don't block the user
       }
 
       onLoaded(allEvents);
@@ -142,6 +155,18 @@ export function ICloudModal({ onLoaded, onClose }: Props) {
               </div>
 
               {error && <p className="text-sm text-red-500">{error}</p>}
+
+              {vaultUnlocked && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={saveToVault}
+                    onChange={(e) => setSaveToVault(e.target.checked)}
+                    className="rounded accent-blue-500"
+                  />
+                  <span className="text-sm text-gray-600">Save credentials to vault</span>
+                </label>
+              )}
 
               <button
                 type="submit"
