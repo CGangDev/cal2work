@@ -1,65 +1,45 @@
 /**
- * Client-side vault helpers for saving credentials.
- * Handles the case where the vault doesn't exist yet by prompting
- * the user to create one via window.prompt.
+ * Client-side vault helpers.
  */
 
-export async function ensureVaultUnlocked(): Promise<boolean> {
-  const statusRes = await fetch('/api/vault/status');
-  const status = await statusRes.json();
+export interface VaultStatus {
+  exists: boolean;
+  unlocked: boolean;
+}
 
-  if (status.unlocked) return true;
+export async function getVaultStatus(): Promise<VaultStatus> {
+  const res = await fetch('/api/vault/status');
+  return res.json();
+}
 
-  if (!status.exists) {
-    // No vault — ask user to create one
-    const password = window.prompt(
-      'Create a vault password to save your credentials.\n' +
-      'You\'ll need this password each time you launch the app.'
-    );
-    if (!password) return false;
-
-    const confirm = window.prompt('Confirm your vault password:');
-    if (confirm !== password) {
-      window.alert('Passwords did not match. Credentials were not saved.');
-      return false;
-    }
-
-    const createRes = await fetch('/api/vault/create', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
-    });
-    return createRes.ok;
-  }
-
-  // Vault exists but is locked — ask for password
-  const password = window.prompt('Enter your vault password to save credentials:');
-  if (!password) return false;
-
-  const unlockRes = await fetch('/api/vault/unlock', {
+export async function createVault(password: string): Promise<boolean> {
+  const res = await fetch('/api/vault/create', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ password }),
   });
-
-  if (!unlockRes.ok) {
-    window.alert('Incorrect vault password. Credentials were not saved.');
-    return false;
-  }
-
-  return true;
+  return res.ok;
 }
 
-export async function saveCredentialsToVault(data: {
+export async function unlockVault(password: string): Promise<{ ok: boolean; error?: string }> {
+  const res = await fetch('/api/vault/unlock', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  });
+  if (res.ok) return { ok: true };
+  const data = await res.json();
+  return { ok: false, error: data.error ?? 'Failed to unlock vault' };
+}
+
+export async function saveToVault(data: {
   icloud?: { email: string; password: string } | null;
   google?: string[];
-}): Promise<void> {
-  const ready = await ensureVaultUnlocked();
-  if (!ready) return;
-
-  await fetch('/api/vault/save', {
+}): Promise<boolean> {
+  const res = await fetch('/api/vault/save', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
+  return res.ok;
 }

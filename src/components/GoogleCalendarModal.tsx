@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { CalendarEvent } from '../types';
 import { parseIcsText } from '../lib/parseIcs';
-import { saveCredentialsToVault } from '../lib/vaultClient';
+import { getVaultStatus, createVault, unlockVault, saveToVault } from '../lib/vaultClient';
+import { VaultPasswordPrompt } from './VaultPasswordPrompt';
 
 // In production, API is on the same origin; in dev, Vite proxies /api to the proxy server
 const PROXY = '';
@@ -16,7 +17,10 @@ export function GoogleCalendarModal({ onLoaded, onClose, savedUrls }: Props) {
   const [urls, setUrls] = useState<string[]>(savedUrls && savedUrls.length > 0 ? savedUrls : ['']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saveToVault, setSaveToVault] = useState(false);
+  const [saveToVaultChecked, setSaveToVaultChecked] = useState(false);
+  const [vaultPrompt, setVaultPrompt] = useState<'create' | 'unlock' | null>(null);
+  const [vaultError, setVaultError] = useState<string | null>(null);
+  const [pendingEvents, setPendingEvents] = useState<CalendarEvent[] | null>(null);
 
   function setUrl(index: number, value: string) {
     setUrls((prev) => prev.map((u, i) => (i === index ? value : u)));
@@ -64,8 +68,18 @@ export function GoogleCalendarModal({ onLoaded, onClose, savedUrls }: Props) {
       }
 
       // Save to vault if requested
-      if (saveToVault) {
-        await saveCredentialsToVault({ google: validUrls });
+      if (saveToVaultChecked) {
+        const status = await getVaultStatus();
+        if (!status.exists) {
+          setPendingEvents(allEvents);
+          setVaultPrompt('create');
+          return;
+        } else if (!status.unlocked) {
+          setPendingEvents(allEvents);
+          setVaultPrompt('unlock');
+          return;
+        }
+        await saveToVault({ google: validUrls });
       }
 
       onLoaded(allEvents);
@@ -79,6 +93,7 @@ export function GoogleCalendarModal({ onLoaded, onClose, savedUrls }: Props) {
   const hasValidUrl = urls.some((u) => u.trim().length > 0);
 
   return (
+    <>
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
@@ -151,8 +166,8 @@ export function GoogleCalendarModal({ onLoaded, onClose, savedUrls }: Props) {
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
-              checked={saveToVault}
-              onChange={(e) => setSaveToVault(e.target.checked)}
+              checked={saveToVaultChecked}
+              onChange={(e) => setSaveToVaultChecked(e.target.checked)}
               className="rounded accent-blue-500"
             />
             <span className="text-sm text-gray-600">Save URLs to vault</span>
@@ -176,5 +191,32 @@ export function GoogleCalendarModal({ onLoaded, onClose, savedUrls }: Props) {
         </div>
       </div>
     </div>
+
+    {vaultPrompt && (
+      <VaultPasswordPrompt
+        mode={vaultPrompt}
+        error={vaultError}
+        onCancel={() => {
+          setVaultPrompt(null);
+          setVaultError(null);
+          if (pendingEvents) onLoaded(pendingEvents);
+        }}
+        onSubmit={async (vaultPassword) => {
+          setVaultError(null);
+          const validUrls = urls.map((u) => u.trim()).filter(Boolean);
+          if (vaultPrompt === 'create') {
+            const ok = await createVault(vaultPassword);
+            if (!ok) { setVaultError('Failed to create vault.'); return; }
+          } else {
+            const result = await unlockVault(vaultPassword);
+            if (!result.ok) { setVaultError(result.error ?? 'Incorrect password.'); return; }
+          }
+          await saveToVault({ google: validUrls });
+          setVaultPrompt(null);
+          if (pendingEvents) onLoaded(pendingEvents);
+        }}
+      />
+    )}
+    </>
   );
 }

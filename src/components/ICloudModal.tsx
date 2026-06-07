@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { CalendarEvent } from '../types';
 import { parseIcsText } from '../lib/parseIcs';
-import { saveCredentialsToVault } from '../lib/vaultClient';
+import { getVaultStatus, createVault, unlockVault, saveToVault } from '../lib/vaultClient';
+import { VaultPasswordPrompt } from './VaultPasswordPrompt';
 
 // In production, API is on the same origin; in dev, Vite proxies /api to the proxy server
 const PROXY = '';
@@ -28,7 +29,10 @@ export function ICloudModal({ onLoaded, onClose, savedEmail, savedPassword }: Pr
   const [loading, setLoading] = useState(false);
   const [calendars, setCalendars] = useState<Calendar[]>([]);
   const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set());
-  const [saveToVault, setSaveToVault] = useState(false);
+  const [saveToVaultChecked, setSaveToVaultChecked] = useState(false);
+  const [vaultPrompt, setVaultPrompt] = useState<'create' | 'unlock' | null>(null);
+  const [vaultError, setVaultError] = useState<string | null>(null);
+  const [pendingEvents, setPendingEvents] = useState<CalendarEvent[] | null>(null);
 
   async function handleConnect(e: React.FormEvent) {
     e.preventDefault();
@@ -82,8 +86,18 @@ export function ICloudModal({ onLoaded, onClose, savedEmail, savedPassword }: Pr
       }
 
       // Save to vault if requested
-      if (saveToVault) {
-        await saveCredentialsToVault({ icloud: { email, password } });
+      if (saveToVaultChecked) {
+        const status = await getVaultStatus();
+        if (!status.exists) {
+          setPendingEvents(allEvents);
+          setVaultPrompt('create');
+          return;
+        } else if (!status.unlocked) {
+          setPendingEvents(allEvents);
+          setVaultPrompt('unlock');
+          return;
+        }
+        await saveToVault({ icloud: { email, password } });
       }
 
       onLoaded(allEvents);
@@ -106,6 +120,7 @@ export function ICloudModal({ onLoaded, onClose, savedEmail, savedPassword }: Pr
   }
 
   return (
+    <>
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
         {/* Header */}
@@ -155,8 +170,8 @@ export function ICloudModal({ onLoaded, onClose, savedEmail, savedPassword }: Pr
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={saveToVault}
-                  onChange={(e) => setSaveToVault(e.target.checked)}
+                  checked={saveToVaultChecked}
+                  onChange={(e) => setSaveToVaultChecked(e.target.checked)}
                   className="rounded accent-blue-500"
                 />
                 <span className="text-sm text-gray-600">Save credentials to vault</span>
@@ -224,5 +239,31 @@ export function ICloudModal({ onLoaded, onClose, savedEmail, savedPassword }: Pr
         </div>
       </div>
     </div>
+
+    {vaultPrompt && (
+      <VaultPasswordPrompt
+        mode={vaultPrompt}
+        error={vaultError}
+        onCancel={() => {
+          setVaultPrompt(null);
+          setVaultError(null);
+          if (pendingEvents) onLoaded(pendingEvents);
+        }}
+        onSubmit={async (vaultPassword) => {
+          setVaultError(null);
+          if (vaultPrompt === 'create') {
+            const ok = await createVault(vaultPassword);
+            if (!ok) { setVaultError('Failed to create vault.'); return; }
+          } else {
+            const result = await unlockVault(vaultPassword);
+            if (!result.ok) { setVaultError(result.error ?? 'Incorrect password.'); return; }
+          }
+          await saveToVault({ icloud: { email, password } });
+          setVaultPrompt(null);
+          if (pendingEvents) onLoaded(pendingEvents);
+        }}
+      />
+    )}
+    </>
   );
 }
