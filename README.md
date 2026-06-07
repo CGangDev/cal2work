@@ -136,6 +136,36 @@ Click **Stop app** in the top-right corner of the app, or close the terminal win
 
 ---
 
+## Security & privacy
+
+Calendar Export runs entirely on your machine. There is no remote server, no cloud service, and no account registration. Your credentials are never stored to disk (unless you use the optional credential store in a future release) and are only held in memory for the duration of your session.
+
+The app does not use HTTPS for the local web page (`http://localhost:3000`) because all communication stays on your computer's loopback interface — it never touches a network. Browsers treat localhost as a [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts).
+
+When you connect to iCloud or Google Calendar, authentication does leave your machine — but only as a direct TLS-encrypted connection to Apple or Google's servers. The flow looks like this:
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant App as Calendar Export<br/>(localhost)
+    participant Apple as Apple / Google<br/>(TLS encrypted)
+
+    Browser->>App: Credentials entered in UI<br/>(never leaves localhost)
+    App->>Apple: HTTPS request with credentials<br/>(TLS 1.2+ encrypted in transit)
+    Apple-->>App: Calendar data response<br/>(TLS encrypted)
+    App-->>Browser: Events displayed in UI<br/>(localhost only)
+```
+
+**Key points:**
+
+- **Browser → App:** HTTP over localhost (loopback only, never on the network)
+- **App → Apple/Google:** HTTPS with TLS encryption. Credentials are transmitted as HTTP Basic Auth (iCloud) or embedded in a secret URL (Google), both inside an encrypted TLS tunnel.
+- **No third parties:** The app makes no requests to any server other than `caldav.icloud.com` (iCloud) or `calendar.google.com` (Google). No analytics, no telemetry, no phoning home.
+- **App-specific passwords (iCloud):** Apple's app-specific passwords are scoped tokens that don't grant full account access. You can revoke them at any time from [appleid.apple.com](https://appleid.apple.com).
+- **Secret iCal URLs (Google):** These are unguessable URLs that grant read-only access to a single calendar. You can reset them in Google Calendar settings at any time.
+
+---
+
 ## Available scripts
 
 | Command | What it does |
