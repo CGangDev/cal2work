@@ -5,6 +5,7 @@ import { XMLParser } from 'fast-xml-parser';
 import { exec } from 'child_process';
 import path from 'path';
 import { existsSync } from 'fs';
+import { fileURLToPath } from 'url';
 
 // Determine if we're running as a packaged executable (pkg sets process.pkg)
 const IS_PACKAGED = Boolean(process.pkg);
@@ -21,7 +22,7 @@ if (IS_PACKAGED) {
   // points to the snapshot root where server.cjs lives
   DIST_DIR = path.join(__dirname, 'dist');
 } else if (import.meta.url) {
-  DIST_DIR = path.join(path.dirname(new URL(import.meta.url).pathname), 'dist');
+  DIST_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'dist');
 } else if (typeof __dirname !== 'undefined') {
   DIST_DIR = path.join(__dirname, 'dist');
 } else {
@@ -387,13 +388,29 @@ function openBrowser(url) {
   exec(cmd, () => {});
 }
 
-app.listen(PORT, () => {
-  const url = `http://localhost:${PORT}`;
-  if (PRODUCTION) {
-    console.log(`Calendar Export → ${url}`);
-    console.log('Press Ctrl+C to stop.');
-    openBrowser(url);
-  } else {
-    console.log(`iCloud CalDAV proxy → ${url}`);
-  }
-});
+function startServer(port, maxAttempts = 10) {
+  const server = app.listen(port);
+
+  server.on('listening', () => {
+    const url = `http://localhost:${port}`;
+    if (PRODUCTION) {
+      console.log(`Calendar Export → ${url}`);
+      console.log('Press Ctrl+C to stop.');
+      openBrowser(url);
+    } else {
+      console.log(`iCloud CalDAV proxy → ${url}`);
+    }
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE' && maxAttempts > 1) {
+      console.log(`Port ${port} is in use, trying ${port + 1}...`);
+      startServer(port + 1, maxAttempts - 1);
+    } else {
+      console.error(`Failed to start server: ${err.message}`);
+      process.exit(1);
+    }
+  });
+}
+
+startServer(PORT);
