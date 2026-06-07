@@ -291,10 +291,10 @@ export default function App() {
           {vaultStatus?.unlocked && (
             <button
               onClick={() => setShowVaultSettings(true)}
-              className="text-gray-400 hover:text-gray-600 text-sm"
+              className="text-gray-500 hover:text-gray-700 text-sm flex items-center gap-1"
               title="Vault settings"
             >
-              ⚙
+              🔒 Vault
             </button>
           )}
           <StopButton />

@@ -156,10 +156,10 @@ export function FileDropzone({ onLoaded, savedCredentials, vaultUnlocked, onOpen
             {(vaultUnlocked || savedCredentials) && onOpenVaultSettings && (
               <button
                 onClick={onOpenVaultSettings}
-                className="text-gray-400 hover:text-gray-600 text-lg"
+                className="text-gray-500 hover:text-gray-700 text-sm flex items-center gap-1"
                 title="Vault settings"
               >
-                ⚙
+                🔒 Vault
               </button>
             )}
             <StopButton />
