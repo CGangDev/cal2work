@@ -107,7 +107,7 @@ Click **Stop app** in the top-right corner of the app, close the terminal/execut
 
 ## Security & privacy
 
-Cal2Work runs entirely on your machine. There is no remote server, no cloud service, and no account registration. Your credentials are never stored to disk and are only held in memory for the duration of your session.
+Cal2Work runs entirely on your machine. There is no remote server, no cloud service, and no account registration. Your credentials are only held in memory for the duration of your session unless you opt-in to the encrypted credential vault (see below).
 
 The app does not use HTTPS for the local web page (`http://localhost:3000`) because all communication stays on your computer's loopback interface — it never touches a network. Browsers treat localhost as a [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts).
 
@@ -132,6 +132,36 @@ sequenceDiagram
 - **No third parties:** The app makes no requests to any server other than `caldav.icloud.com` (iCloud) or `calendar.google.com` (Google). No analytics, no telemetry, no phoning home.
 - **App-specific passwords (iCloud):** Apple's app-specific passwords are scoped tokens that don't grant full account access. You can revoke them at any time from [appleid.apple.com](https://appleid.apple.com).
 - **Secret iCal URLs (Google):** These are unguessable URLs that grant read-only access to a single calendar. You can reset them in Google Calendar settings at any time.
+
+---
+
+## Credential vault
+
+Cal2Work can optionally save your iCloud credentials and Google Calendar URLs in an encrypted local file so you don't have to re-enter them every time you launch the app.
+
+### How it works
+
+- **Encryption:** AES-256-GCM with a key derived from your chosen vault password via PBKDF2-SHA512 (600,000 iterations)
+- **Storage location:** Platform-specific config directory:
+  - Linux: `~/.config/cal2work/credentials.enc`
+  - macOS: `~/Library/Application Support/cal2work/credentials.enc`
+  - Windows: `%APPDATA%\cal2work\credentials.enc`
+- **Portable:** No machine-specific data is used in the encryption — you can copy the vault file to another machine and unlock it with the same password
+- **What's stored:** iCloud email + app-specific password, Google Calendar iCal URLs, and the auto-connect preference
+
+### Using the vault
+
+1. **First time:** After successfully connecting to iCloud or Google Calendar, check **"Save to vault"** in the modal. You'll be prompted to create a vault password.
+2. **On launch:** If a vault file exists, you'll be prompted for your vault password. Enter it to pre-fill saved credentials, or click **Skip** to proceed without them.
+3. **Auto-connect:** Enable in vault settings (⚙) to skip the connection modals entirely — the app will connect to your saved calendars automatically when you unlock.
+4. **Managing:** Click the ⚙ gear icon to view what's stored, clear individual entries, change your vault password, or delete the vault.
+
+### Vault security
+
+- The vault password never leaves your machine and is never stored — it's only held in memory while the app is running
+- If you enter the wrong password, decryption fails and the app falls back to manual entry
+- Deleting the vault is permanent and immediate — there is no recovery
+- The stored Apple app-specific password can be revoked at any time from [appleid.apple.com](https://appleid.apple.com), and Google Calendar secret URLs can be reset in Google Calendar settings
 
 ---
 
