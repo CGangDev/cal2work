@@ -23,6 +23,13 @@ export function VaultSettingsModal({ onClose, onDeleted }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  // Add credential forms
+  const [showAddIcloud, setShowAddIcloud] = useState(false);
+  const [icloudEmail, setIcloudEmail] = useState('');
+  const [icloudPassword, setIcloudPassword] = useState('');
+  const [showAddGoogle, setShowAddGoogle] = useState(false);
+  const [googleUrl, setGoogleUrl] = useState('');
+
   useEffect(() => {
     fetch('/api/vault/status')
       .then((r) => r.json())
@@ -64,6 +71,52 @@ export function VaultSettingsModal({ onClose, onDeleted }: Props) {
     if (res.ok && status) {
       setStatus({ ...status, googleUrlCount: 0 });
       setMessage('Google Calendar URLs cleared.');
+    }
+  }
+
+  async function handleAddIcloud(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+    if (!icloudEmail || !icloudPassword) return;
+    const res = await fetch('/api/vault/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ icloud: { email: icloudEmail, password: icloudPassword } }),
+    });
+    if (res.ok && status) {
+      setStatus({ ...status, hasIcloud: true });
+      setMessage('iCloud credentials saved.');
+      setShowAddIcloud(false);
+      setIcloudEmail('');
+      setIcloudPassword('');
+    } else {
+      setError('Failed to save iCloud credentials.');
+    }
+  }
+
+  async function handleAddGoogleUrl(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+    if (!googleUrl.trim()) return;
+    // Fetch current credentials to append the new URL
+    const credsRes = await fetch('/api/vault/credentials', { method: 'POST' });
+    if (!credsRes.ok) { setError('Failed to read vault.'); return; }
+    const creds = await credsRes.json();
+    const urls: string[] = [...(creds.google || []), googleUrl.trim()];
+    const res = await fetch('/api/vault/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ google: urls }),
+    });
+    if (res.ok && status) {
+      setStatus({ ...status, googleUrlCount: urls.length });
+      setMessage('Google Calendar URL added.');
+      setGoogleUrl('');
+      setShowAddGoogle(false);
+    } else {
+      setError('Failed to save Google Calendar URL.');
     }
   }
 
@@ -123,10 +176,53 @@ export function VaultSettingsModal({ onClose, onDeleted }: Props) {
                 <p className="text-sm text-gray-700">iCloud</p>
                 <p className="text-xs text-gray-400">{status.hasIcloud ? 'Email & password saved' : 'Not saved'}</p>
               </div>
-              {status.hasIcloud && (
+              {status.hasIcloud ? (
                 <button onClick={handleClearIcloud} className="text-xs text-red-500 hover:text-red-700">Clear</button>
+              ) : (
+                <button onClick={() => { setShowAddIcloud(true); setError(null); setMessage(null); }} className="text-xs text-blue-600 hover:text-blue-800">Add</button>
               )}
             </div>
+
+            {showAddIcloud && !status.hasIcloud && (
+              <form onSubmit={handleAddIcloud} className="space-y-2 border border-gray-100 rounded-xl p-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Apple ID email</label>
+                  <input
+                    type="email"
+                    required
+                    value={icloudEmail}
+                    onChange={(e) => setIcloudEmail(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    placeholder="you@icloud.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">App-specific password</label>
+                  <input
+                    type="password"
+                    required
+                    value={icloudPassword}
+                    onChange={(e) => setIcloudPassword(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddIcloud(false)}
+                    className="flex-1 py-1.5 rounded-lg border border-gray-200 text-gray-600 text-xs hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700"
+                  >
+                    Save
+                  </button>
+                </div>
+              </form>
+            )}
 
             <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
               <div>
@@ -135,10 +231,44 @@ export function VaultSettingsModal({ onClose, onDeleted }: Props) {
                   {status.googleUrlCount > 0 ? `${status.googleUrlCount} URL${status.googleUrlCount > 1 ? 's' : ''} saved` : 'Not saved'}
                 </p>
               </div>
-              {status.googleUrlCount > 0 && (
-                <button onClick={handleClearGoogle} className="text-xs text-red-500 hover:text-red-700">Clear</button>
-              )}
+              <div className="flex gap-2">
+                <button onClick={() => { setShowAddGoogle(true); setError(null); setMessage(null); }} className="text-xs text-blue-600 hover:text-blue-800">Add</button>
+                {status.googleUrlCount > 0 && (
+                  <button onClick={handleClearGoogle} className="text-xs text-red-500 hover:text-red-700">Clear</button>
+                )}
+              </div>
             </div>
+
+            {showAddGoogle && (
+              <form onSubmit={handleAddGoogleUrl} className="space-y-2 border border-gray-100 rounded-xl p-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Google Calendar iCal URL</label>
+                  <input
+                    type="url"
+                    required
+                    value={googleUrl}
+                    onChange={(e) => setGoogleUrl(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    placeholder="https://calendar.google.com/calendar/ical/..."
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddGoogle(false)}
+                    className="flex-1 py-1.5 rounded-lg border border-gray-200 text-gray-600 text-xs hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700"
+                  >
+                    Add URL
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
 
           {/* Auto-connect toggle */}
