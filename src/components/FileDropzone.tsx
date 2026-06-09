@@ -196,13 +196,21 @@ export function FileDropzone({ onLoaded, savedCredentials, vaultUnlocked, onOpen
           <div className="flex gap-3">
             <button
               onClick={() => setShowICloud(true)}
-              className="flex-1 py-2.5 rounded-xl bg-white border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
+              className={`flex-1 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                savedCredentials?.icloud
+                  ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100'
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
             >
               iCloud Calendar
             </button>
             <button
               onClick={() => setShowGoogle(true)}
-              className="flex-1 py-2.5 rounded-xl bg-white border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
+              className={`flex-1 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                savedCredentials?.google && savedCredentials.google.length > 0
+                  ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100'
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
             >
               Google Calendar
             </button>
