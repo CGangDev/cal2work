@@ -58,6 +58,15 @@ export default function App() {
         setVaultStatus(status);
         if (status.exists && !status.unlocked) {
           setShowUnlock(true);
+        } else if (status.exists && status.unlocked) {
+          // Vault already unlocked (e.g. page refresh) — fetch credentials
+          fetch('/api/vault/credentials', { method: 'POST' })
+            .then((r) => r.ok ? r.json() : null)
+            .then((creds: VaultCredentials | null) => {
+              if (creds) setSavedCredentials(creds);
+              setVaultChecked(true);
+            })
+            .catch(() => setVaultChecked(true));
         } else {
           setVaultChecked(true);
         }
