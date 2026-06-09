@@ -6,6 +6,7 @@ import { CalendarView } from './components/CalendarView';
 import { TimeframeFilter } from './components/TimeframeFilter';
 import { SelectedEventsSidebar } from './components/SelectedEventsSidebar';
 import { StopButton } from './components/StopButton';
+import { ConnectionLost } from './components/ConnectionLost';
 import { VaultUnlockModal } from './components/VaultUnlockModal';
 import { VaultCreateModal } from './components/VaultCreateModal';
 import { VaultSettingsModal } from './components/VaultSettingsModal';
@@ -271,22 +272,26 @@ export default function App() {
 
   // Show vault modals before anything else
   if (showUnlock) {
-    return <VaultUnlockModal onUnlocked={handleVaultUnlocked} onSkip={handleVaultSkip} onCreate={handleShowCreate} />;
+    return <><ConnectionLost /><VaultUnlockModal onUnlocked={handleVaultUnlocked} onSkip={handleVaultSkip} onCreate={handleShowCreate} /></>;
   }
   if (showCreate) {
-    return <VaultCreateModal onCreated={handleVaultCreated} onCancel={handleCreateCancel} />;
+    return <><ConnectionLost /><VaultCreateModal onCreated={handleVaultCreated} onCancel={handleCreateCancel} /></>;
   }
   if (!vaultChecked || autoConnecting) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <p className="text-gray-500 text-sm">{autoConnecting ? 'Connecting to saved calendars…' : ''}</p>
-      </div>
+      <>
+        <ConnectionLost />
+        <div className="flex items-center justify-center min-h-screen bg-gray-50">
+          <p className="text-gray-500 text-sm">{autoConnecting ? 'Connecting to saved calendars…' : ''}</p>
+        </div>
+      </>
     );
   }
 
   if (events.length === 0) {
     return (
       <>
+        <ConnectionLost />
         <FileDropzone
           onLoaded={handleLoaded}
           savedCredentials={savedCredentials}
@@ -305,6 +310,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
+      <ConnectionLost />
       <header className="flex items-center justify-between px-4 py-2.5 bg-white border-b border-gray-200 gap-4">
         <button
           onClick={() => { setEvents([]); setSelected([]); }}
