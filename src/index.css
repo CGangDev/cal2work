@@ -13,6 +13,38 @@ html, body, #root {
 }
 
 /* FullCalendar overrides */
+.fc .fc-icon::before {
+  content: none;
+}
+
+.fc .fc-icon-chevron-left::before {
+  content: "\e900";
+}
+
+.fc .fc-icon-chevron-right::before {
+  content: "\e901";
+}
+
+.fc .fc-icon-chevrons-left::before {
+  content: "\e902";
+}
+
+.fc .fc-icon-chevrons-right::before {
+  content: "\e903";
+}
+
+.fc .fc-icon-minus-square::before {
+  content: "\e904";
+}
+
+.fc .fc-icon-plus-square::before {
+  content: "\e905";
+}
+
+.fc .fc-icon-x::before {
+  content: "\e906";
+}
+
 .fc {
   height: 100%;
   font-size: 13px;

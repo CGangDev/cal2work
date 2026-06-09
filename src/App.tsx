@@ -165,6 +165,32 @@ export default function App() {
     setVaultChecked(true);
   }
 
+  async function handleVaultSettingsClosed() {
+    setShowVaultSettings(false);
+    // Refresh credentials and vault status so the UI reflects any changes made in settings
+    try {
+      const statusRes = await fetch('/api/vault/status');
+      if (statusRes.ok) {
+        const status: VaultStatus = await statusRes.json();
+        setVaultStatus(status);
+        if (status.unlocked) {
+          const credsRes = await fetch('/api/vault/credentials', { method: 'POST' });
+          if (credsRes.ok) {
+            const creds: VaultCredentials = await credsRes.json();
+            setSavedCredentials(creds);
+          } else {
+            setSavedCredentials(null);
+          }
+        } else {
+          setSavedCredentials(null);
+        }
+      }
+    } catch {
+      // If fetch fails, clear stale credentials to avoid crashes
+      setSavedCredentials(null);
+    }
+  }
+
   function handleLoaded(loaded: CalendarEvent[]) {
     setEvents(loaded);
     setSelected([]);
@@ -260,7 +286,7 @@ export default function App() {
         />
         {showVaultSettings && (
           <VaultSettingsModal
-            onClose={() => setShowVaultSettings(false)}
+            onClose={handleVaultSettingsClosed}
             onDeleted={() => { setVaultStatus(null); setSavedCredentials(null); setShowVaultSettings(false); }}
           />
         )}
@@ -321,7 +347,7 @@ export default function App() {
 
       {showVaultSettings && (
         <VaultSettingsModal
-          onClose={() => setShowVaultSettings(false)}
+          onClose={handleVaultSettingsClosed}
           onDeleted={() => { setVaultStatus(null); setSavedCredentials(null); setShowVaultSettings(false); }}
         />
       )}
