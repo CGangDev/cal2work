@@ -207,11 +207,24 @@ export default function App() {
     const range = defaultRange();
     setRangeStart(range.start);
     setRangeEnd(range.end);
-    // Refresh vault status (vault may have been created during modal flow)
-    fetch('/api/vault/status')
-      .then((r) => r.json())
-      .then((status: VaultStatus) => setVaultStatus(status))
-      .catch(() => {});
+    // Refresh vault status and credentials (vault may have been created/updated during modal flow)
+    refreshVaultCredentials();
+  }
+
+  async function refreshVaultCredentials() {
+    try {
+      const statusRes = await fetch('/api/vault/status');
+      if (statusRes.ok) {
+        const status: VaultStatus = await statusRes.json();
+        setVaultStatus(status);
+        if (status.unlocked) {
+          const credsRes = await fetch('/api/vault/credentials', { method: 'POST' });
+          if (credsRes.ok) {
+            setSavedCredentials(await credsRes.json());
+          }
+        }
+      }
+    } catch { /* ignore */ }
   }
 
   const visibleEvents = useMemo(() => {
@@ -297,6 +310,7 @@ export default function App() {
           savedCredentials={savedCredentials}
           vaultUnlocked={vaultStatus?.unlocked ?? false}
           onOpenVaultSettings={() => setShowVaultSettings(true)}
+          onModalClosed={refreshVaultCredentials}
         />
         {showVaultSettings && (
           <VaultSettingsModal

@@ -16,9 +16,10 @@ interface Props {
   savedCredentials?: VaultCredentials | null;
   vaultUnlocked?: boolean;
   onOpenVaultSettings?: () => void;
+  onModalClosed?: () => void;
 }
 
-export function FileDropzone({ onLoaded, savedCredentials, vaultUnlocked, onOpenVaultSettings }: Props) {
+export function FileDropzone({ onLoaded, savedCredentials, vaultUnlocked, onOpenVaultSettings, onModalClosed }: Props) {
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -275,7 +276,7 @@ export function FileDropzone({ onLoaded, savedCredentials, vaultUnlocked, onOpen
       {showICloud && (
         <ICloudModal
           onLoaded={(events) => { setShowICloud(false); onLoaded(events); }}
-          onClose={() => setShowICloud(false)}
+          onClose={() => { setShowICloud(false); onModalClosed?.(); }}
           savedEmail={savedCredentials?.icloud?.email}
           savedPassword={savedCredentials?.icloud?.password}
         />
@@ -284,7 +285,7 @@ export function FileDropzone({ onLoaded, savedCredentials, vaultUnlocked, onOpen
       {showGoogle && (
         <GoogleCalendarModal
           onLoaded={(events) => { setShowGoogle(false); onLoaded(events); }}
-          onClose={() => setShowGoogle(false)}
+          onClose={() => { setShowGoogle(false); onModalClosed?.(); }}
           savedUrls={savedCredentials?.google}
         />
       )}
