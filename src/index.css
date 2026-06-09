@@ -12,42 +12,35 @@ html, body, #root {
   -webkit-font-smoothing: antialiased;
 }
 
-/* FullCalendar icon overrides — Tailwind 4 Preflight resets ::before content via
-   var(--tw-content). We must set both the custom property and content to ensure
-   the icon font glyphs render. */
+/* FullCalendar icon overrides — Tailwind 4 Preflight sets content: var(--tw-content)
+   on all ::before/::after pseudo-elements which strips the icon font glyphs.
+   We use !important to override the Tailwind base layer reset. */
 .fc .fc-icon-chevron-left::before {
-  --tw-content: "\e900";
-  content: var(--tw-content);
+  content: "\e900" !important;
 }
 
 .fc .fc-icon-chevron-right::before {
-  --tw-content: "\e901";
-  content: var(--tw-content);
+  content: "\e901" !important;
 }
 
 .fc .fc-icon-chevrons-left::before {
-  --tw-content: "\e902";
-  content: var(--tw-content);
+  content: "\e902" !important;
 }
 
 .fc .fc-icon-chevrons-right::before {
-  --tw-content: "\e903";
-  content: var(--tw-content);
+  content: "\e903" !important;
 }
 
 .fc .fc-icon-minus-square::before {
-  --tw-content: "\e904";
-  content: var(--tw-content);
+  content: "\e904" !important;
 }
 
 .fc .fc-icon-plus-square::before {
-  --tw-content: "\e905";
-  content: var(--tw-content);
+  content: "\e905" !important;
 }
 
 .fc .fc-icon-x::before {
-  --tw-content: "\e906";
-  content: var(--tw-content);
+  content: "\e906" !important;
 }
 
 .fc {
